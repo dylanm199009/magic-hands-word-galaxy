@@ -3,11 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Magic Garden V24 (Final Vision Fix)</title>
+    <title>Magic Garden V25 (Vision Fix)</title>
     
-    <!-- 核心库 -->
+    <!-- 核心库 (MediaPipe + Three.js + GSAP) -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
 
@@ -16,16 +17,16 @@
 
         body, html { margin: 0; overflow: hidden; font-family: 'Fredoka', sans-serif; background: #222; touch-action: none; }
 
-        /* 全屏背景 */
+        /* 动态背景 */
         #sky-gradient {
             position: fixed; inset: 0; z-index: -2;
             background: linear-gradient(180deg, #a18cd1 0%, #fbc2eb 100%);
         }
 
-        /* 错误提示 */
-        #error-bar {
-            position: fixed; top: 0; left: 0; width: 100%; background: rgba(255,0,0,0.8);
-            color: white; padding: 5px; text-align: center; display: none; z-index: 99999;
+        /* 错误条 */
+        #debug-bar {
+            position: fixed; top: 0; left: 0; width: 100%; background: rgba(0,0,0,0.8);
+            color: #0f0; font-size: 10px; padding: 2px; z-index: 99999; display: block;
         }
 
         /* 1. 大厅 */
@@ -34,40 +35,45 @@
             background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px);
             display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
-        .logo h1 { color: #6c5ce7; font-size: 48px; margin: 0; text-shadow: 2px 2px #fff; }
+        .logo h1 { color: #6c5ce7; font-size: 40px; margin: 0; text-shadow: 2px 2px #fff; }
         
-        /* 关卡网格 */
+        .tree-box { margin: 10px 0; text-align: center; }
+        #magic-tree { font-size: 60px; display: block; animation: grow 2s infinite alternate; }
+        @keyframes grow { from {transform: scale(1);} to {transform: scale(1.1);} }
+
+        /* 关卡列表 */
         .level-grid {
-            display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 20px;
-            padding: 10px; width: 90%; max-width: 600px; max-height: 50vh; overflow-y: auto;
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; 
+            width: 95%; max-width: 500px; max-height: 50vh; overflow-y: auto; padding: 10px;
         }
         .lvl-btn {
-            aspect-ratio: 1; border: none; border-radius: 20px;
-            background: white; border-bottom: 5px solid var(--c);
-            font-size: 16px; font-weight: bold; color: #555; cursor: pointer;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            aspect-ratio: 1; border: none; border-radius: 15px;
+            background: white; border-bottom: 4px solid var(--c);
+            font-size: 14px; font-weight: bold; color: #555; cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
         }
         .lvl-btn:active { transform: scale(0.95); }
 
-        #status-msg { margin-top: 20px; color: #888; font-size: 14px; }
+        #status-msg { margin-top: 20px; color: #888; font-size: 14px; animation: blink 1s infinite; }
+        @keyframes blink { 50% { opacity: 0.5; } }
 
         /* 2. 游戏 HUD */
         #game-ui { position: fixed; inset: 0; pointer-events: none; z-index: 10; display: none; }
         .top-bar { 
-            position: absolute; top: 0; left: 0; width: 100%; padding: 20px; 
+            position: absolute; top: 20px; left: 0; width: 100%; padding: 0 20px;
             display: flex; justify-content: space-between; box-sizing: border-box; 
         }
         .score-box { font-size: 32px; color: #fdcb6e; font-weight: 900; text-shadow: 2px 2px 0 #d63031; }
-        .home-btn { pointer-events: auto; padding: 10px 20px; background: #ff7675; border: none; border-radius: 15px; color: white; font-weight: bold; }
+        .home-btn { pointer-events: auto; padding: 8px 15px; background: #ff7675; border: none; border-radius: 10px; color: white; font-weight: bold; }
 
         /* 特效层 */
-        #vfx-layer { position: fixed; inset: 0; pointer-events: none; z-index: 20; }
+        #vfx-layer { position: fixed; inset: 0; pointer-events: none; z-index: 20; overflow: hidden; }
         .float-text {
             position: absolute; font-weight: 900; text-shadow: 2px 2px 0 #000;
-            animation: floatPop 1s forwards; font-size: 40px; pointer-events: none;
+            animation: floatUp 1s forwards; font-size: 40px; white-space: nowrap;
         }
-        @keyframes floatPop {
+        @keyframes floatUp {
             0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
             50% { transform: translate(-50%, -100px) scale(1.2); opacity: 1; }
             100% { transform: translate(-50%, -200px) scale(1); opacity: 0; }
@@ -81,12 +87,12 @@
         }
         #card-modal.active { opacity: 1; pointer-events: auto; }
         .card-inner {
-            background: white; width: 85%; max-width: 320px; padding: 20px; border-radius: 40px; text-align: center;
-            border: 8px solid #a29bfe; transform: scale(0.8); transition: 0.4s;
+            background: white; width: 80%; max-width: 300px; padding: 20px; border-radius: 30px; text-align: center;
+            border: 6px solid #a29bfe; transform: scale(0.8); transition: 0.4s;
         }
         #card-modal.active .card-inner { transform: scale(1); }
         #c-icon { font-size: 80px; }
-        #c-word { font-size: 36px; margin: 5px 0; color: #2d3436; }
+        #c-word { font-size: 32px; margin: 5px 0; color: #2d3436; }
         #mic-btn {
             width: 60px; height: 60px; border-radius: 50%; border: none; background: #00cec9;
             font-size: 30px; color: white; margin-top: 10px; cursor: pointer; display: none;
@@ -94,33 +100,37 @@
         }
         @keyframes pulse { 70% { box-shadow: 0 0 0 15px rgba(0, 206, 201, 0); } }
 
-        /* 4. 摄像头预览 (关键修复：必须放在可见区域) */
+        /* 4. 摄像头调试窗 (关键修复：确保可见性) */
         #cam-container {
-            position: fixed; bottom: 10px; right: 10px; width: 140px; height: 105px;
-            background: #000; border: 3px solid white; border-radius: 15px; z-index: 50;
-            overflow: hidden; box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            position: fixed; bottom: 10px; right: 10px; width: 160px; height: 120px;
+            background: #000; border: 2px solid #fff; border-radius: 10px; z-index: 50;
+            overflow: hidden; pointer-events: none;
         }
-        #input-video { 
-            width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); 
-            display: block; /* 确保显示 */
+        #input-video {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            object-fit: cover; transform: scaleX(-1);
         }
-        #radar-canvas { 
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
-            transform: scaleX(-1); z-index: 51;
+        #radar-canvas {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            transform: scaleX(-1); z-index: 2;
         }
 
         #webgl-canvas { position: fixed; inset: 0; z-index: 0; }
     </style>
 </head>
 <body>
-    <div id="error-bar"></div>
+    <div id="debug-bar">初始化...</div>
     <div id="sky-gradient"></div>
 
     <!-- 大厅 -->
     <div id="lobby-screen">
         <div class="logo">
             <h1>🌸 奇幻花园</h1>
-            <p>V24 淘金版</p>
+            <p>V25 视觉修复版</p>
+        </div>
+        <div class="tree-box">
+            <div id="magic-tree">🌳</div>
+            <div style="font-size:12px; color:#666">分数: <span id="total-score">0</span></div>
         </div>
         <div class="level-grid">
             <button class="lvl-btn" onclick="startGame('animals')" style="--c:#ff7675">🦁<br>动物</button>
@@ -132,14 +142,14 @@
             <button class="lvl-btn" onclick="startGame('vehicles')" style="--c:#636e72">🚗<br>交通</button>
             <button class="lvl-btn" onclick="startGame('action')" style="--c:#e17055">🏃<br>动作</button>
         </div>
-        <div id="status-msg">点击关卡启动...</div>
+        <div id="status-msg">请点击任意关卡启动...</div>
     </div>
 
     <!-- 游戏 UI -->
     <div id="game-ui">
         <div class="top-bar">
-            <div class="score-box">✨ <span id="score">0</span></div>
-            <button class="home-btn" onclick="location.reload()">退出</button>
+            <div class="score-box">✨ <span id="game-score">0</span></div>
+            <button class="home-btn" onclick="location.reload()">🏠</button>
         </div>
         <div id="vfx-layer"></div>
         <div id="card-modal">
@@ -147,7 +157,7 @@
                 <div id="c-icon">🍎</div>
                 <h2 id="c-word">APPLE</h2>
                 <h3 style="color:#0984e3; margin:0;" id="c-cn">苹果</h3>
-                <p id="mic-hint" style="color:#888;">🔊 朗读中...</p>
+                <p id="mic-hint" style="color:#888; font-size:12px;">🔊 朗读中...</p>
                 <button id="mic-btn" onclick="startSpeechRec()">🎙️</button>
                 <br>
                 <button onclick="closeCard()" style="background:none; border:none; color:#999; margin-top:5px; text-decoration:underline;">跳过</button>
@@ -155,36 +165,41 @@
         </div>
     </div>
 
-    <!-- 摄像头预览 (Video直接放在这里，保证可见性) -->
+    <!-- 摄像头预览 (重要) -->
     <div id="cam-container">
         <video id="input-video" playsinline webkit-playsinline muted autoplay></video>
-        <canvas id="radar-canvas" width="140" height="105"></canvas>
+        <canvas id="radar-canvas"></canvas>
     </div>
 
     <canvas id="webgl-canvas"></canvas>
 
     <script>
-        // --- 0. 环境检测 ---
-        if (typeof THREE === 'undefined') document.getElementById('error-bar').style.display = 'block';
+        // --- 0. 错误捕获 ---
+        function log(msg) {
+            console.log(msg);
+            document.getElementById('debug-bar').innerText = msg;
+        }
+        window.onerror = (e) => log("Err: " + e);
 
-        // --- 1. 海量词库 ---
+        // --- 1. 海量词库 (完整保留) ---
         const DB = {
-            animals: [{en:'LION',cn:'狮子',i:'🦁',c:0xffa502},{en:'TIGER',cn:'老虎',i:'🐯',c:0xff6348},{en:'CAT',cn:'猫咪',i:'🐱',c:0xff6b6b},{en:'DOG',cn:'小狗',i:'🐶',c:0x54a0ff},{en:'PANDA',cn:'熊猫',i:'🐼',c:0x2f3542},{en:'RABBIT',cn:'兔子',i:'🐰',c:0xffffff},{en:'PIG',cn:'小猪',i:'🐷',c:0xffcccc},{en:'BEAR',cn:'熊',i:'🐻',c:0x8d6e63},{en:'FROG',cn:'青蛙',i:'🐸',c:0x2ecc71},{en:'KOALA',cn:'考拉',i:'🐨',c:0x95afc0},{en:'FOX',cn:'狐狸',i:'🦊',c:0xe17055},{en:'ZEBRA',cn:'斑马',i:'🦓',c:0x2d3436}],
-            fruits: [{en:'APPLE',cn:'苹果',i:'🍎',c:0xff4757},{en:'BANANA',cn:'香蕉',i:'🍌',c:0xffeaa7},{en:'GRAPE',cn:'葡萄',i:'🍇',c:0xa29bfe},{en:'PEACH',cn:'桃子',i:'🍑',c:0xfdcb6e},{en:'MELON',cn:'甜瓜',i:'🍈',c:0x55efc4},{en:'CHERRY',cn:'樱桃',i:'🍒',c:0xd63031},{en:'LEMON',cn:'柠檬',i:'🍋',c:0xf1c40f},{en:'ORANGE',cn:'橙子',i:'🍊',c:0xe67e22},{en:'WATERMELON',cn:'西瓜',i:'🍉',c:0x2ecc71},{en:'STRAWBERRY',cn:'草莓',i:'🍓',c:0xe84393}],
+            animals: [{en:'LION',cn:'狮子',i:'🦁',c:0xffa502},{en:'TIGER',cn:'老虎',i:'🐯',c:0xff6348},{en:'CAT',cn:'猫咪',i:'🐱',c:0xff6b6b},{en:'DOG',cn:'小狗',i:'🐶',c:0x54a0ff},{en:'PANDA',cn:'熊猫',i:'🐼',c:0x2f3542},{en:'RABBIT',cn:'兔子',i:'🐰',c:0xffffff},{en:'PIG',cn:'小猪',i:'🐷',c:0xffcccc},{en:'BEAR',cn:'熊',i:'🐻',c:0x8d6e63},{en:'FROG',cn:'青蛙',i:'🐸',c:0x2ecc71},{en:'KOALA',cn:'考拉',i:'🐨',c:0x95afc0},{en:'FOX',cn:'狐狸',i:'🦊',c:0xe17055},{en:'ZEBRA',cn:'斑马',i:'🦓',c:0x2d3436},{en:'GIRAFFE',cn:'长颈鹿',i:'🦒',c:0xf1c40f},{en:'ELEPHANT',cn:'大象',i:'🐘',c:0xbdc3c7},{en:'MONKEY',cn:'猴子',i:'🐵',c:0xd35400}],
+            fruits: [{en:'APPLE',cn:'苹果',i:'🍎',c:0xff4757},{en:'BANANA',cn:'香蕉',i:'🍌',c:0xffeaa7},{en:'GRAPE',cn:'葡萄',i:'🍇',c:0xa29bfe},{en:'PEACH',cn:'桃子',i:'🍑',c:0xfdcb6e},{en:'MELON',cn:'甜瓜',i:'🍈',c:0x55efc4},{en:'CHERRY',cn:'樱桃',i:'🍒',c:0xd63031},{en:'LEMON',cn:'柠檬',i:'🍋',c:0xf1c40f},{en:'ORANGE',cn:'橙子',i:'🍊',c:0xe67e22},{en:'WATERMELON',cn:'西瓜',i:'🍉',c:0x2ecc71}],
             colors: [{en:'RED',cn:'红色',i:'🔴',c:0xff0000},{en:'BLUE',cn:'蓝色',i:'🔵',c:0x0000ff},{en:'GREEN',cn:'绿色',i:'🟢',c:0x00ff00},{en:'YELLOW',cn:'黄色',i:'🟡',c:0xffff00},{en:'PURPLE',cn:'紫色',i:'🟣',c:0x800080},{en:'ORANGE',cn:'橙色',i:'🟠',c:0xffa500},{en:'BLACK',cn:'黑色',i:'⚫',c:0x000000},{en:'WHITE',cn:'白色',i:'⚪',c:0xffffff}],
             numbers: [{en:'ONE',cn:'一',i:'1️⃣',c:0x74b9ff},{en:'TWO',cn:'二',i:'2️⃣',c:0x0984e3},{en:'THREE',cn:'三',i:'3️⃣',c:0x6c5ce7},{en:'FOUR',cn:'四',i:'4️⃣',c:0xa29bfe},{en:'FIVE',cn:'五',i:'5️⃣',c:0x00cec9},{en:'SIX',cn:'六',i:'6️⃣',c:0xff7675},{en:'SEVEN',cn:'七',i:'7️⃣',c:0xfdcb6e},{en:'EIGHT',cn:'八',i:'8️⃣',c:0x6a0572},{en:'NINE',cn:'九',i:'9️⃣',c:0xab352f},{en:'TEN',cn:'十',i:'🔟',c:0x52b4bf}],
             body: [{en:'EYE',cn:'眼睛',i:'👁️',c:0xffffff},{en:'EAR',cn:'耳朵',i:'👂',c:0xf7d794},{en:'NOSE',cn:'鼻子',i:'👃',c:0xf5cd79},{en:'MOUTH',cn:'嘴巴',i:'👄',c:0xff6b81},{en:'HAND',cn:'手',i:'🖐️',c:0xffcccc},{en:'FOOT',cn:'脚',i:'🦶',c:0xf7d794},{en:'ARM',cn:'手臂',i:'💪',c:0xf7d794},{en:'LEG',cn:'腿',i:'🦵',c:0xf7d794},{en:'HEAD',cn:'头',i:'🗣️',c:0xf7d794}],
-            vehicles: [{en:'CAR',cn:'汽车',i:'🚗',c:0xe74c3c},{en:'BUS',cn:'巴士',i:'🚌',c:0xf1c40f},{en:'PLANE',cn:'飞机',i:'✈️',c:0x3498db},{en:'SHIP',cn:'轮船',i:'🚢',c:0x34495e},{en:'BIKE',cn:'自行车',i:'🚲',c:0x2ecc71},{en:'ROCKET',cn:'火箭',i:'🚀',c:0x8e44ad},{en:'TRAIN',cn:'火车',i:'🚂',c:0x2c3e50},{en:'TRUCK',cn:'卡车',i:'🚚',c:0x95a5a6},{en:'TAXI',cn:'出租车',i:'🚕',c:0xf1c40f}],
-            nature: [{en:'SUN',cn:'太阳',i:'☀️',c:0xf1c40f},{en:'MOON',cn:'月亮',i:'🌙',c:0xf1c40f},{en:'STAR',cn:'星星',i:'⭐',c:0xf1c40f},{en:'CLOUD',cn:'云',i:'☁️',c:0xffffff},{en:'RAIN',cn:'雨',i:'🌧️',c:0x3498db},{en:'SNOW',cn:'雪',i:'❄️',c:0xffffff},{en:'TREE',cn:'树',i:'🌳',c:0x27ae60},{en:'FLOWER',cn:'花',i:'🌸',c:0xe84393},{en:'FIRE',cn:'火',i:'🔥',c:0xe74c3c}],
+            vehicles: [{en:'CAR',cn:'汽车',i:'🚗',c:0xe74c3c},{en:'BUS',cn:'巴士',i:'🚌',c:0xf1c40f},{en:'PLANE',cn:'飞机',i:'✈️',c:0x3498db},{en:'SHIP',cn:'轮船',i:'🚢',c:0x34495e},{en:'BIKE',cn:'自行车',i:'🚲',c:0x2ecc71},{en:'ROCKET',cn:'火箭',i:'🚀',c:0x8e44ad},{en:'TRAIN',cn:'火车',i:'🚂',c:0x2c3e50}],
+            nature: [{en:'SUN',cn:'太阳',i:'☀️',c:0xf1c40f},{en:'MOON',cn:'月亮',i:'🌙',c:0xf1c40f},{en:'STAR',cn:'星星',i:'⭐',c:0xf1c40f},{en:'CLOUD',cn:'云',i:'☁️',c:0xffffff},{en:'RAIN',cn:'雨',i:'🌧️',c:0x3498db},{en:'SNOW',cn:'雪',i:'❄️',c:0xffffff},{en:'TREE',cn:'树',i:'🌳',c:0x27ae60},{en:'FLOWER',cn:'花',i:'🌸',c:0xe84393}],
             action: [{en:'RUN',cn:'跑',i:'🏃',c:0xe74c3c},{en:'JUMP',cn:'跳',i:'🦘',c:0xf1c40f},{en:'SWIM',cn:'游泳',i:'🏊',c:0x3498db},{en:'EAT',cn:'吃',i:'🍽️',c:0xe67e22},{en:'SLEEP',cn:'睡觉',i:'💤',c:0x34495e},{en:'DANCE',cn:'跳舞',i:'💃',c:0x9b59b6},{en:'SING',cn:'唱歌',i:'🎤',c:0x2ecc71},{en:'READ',cn:'读',i:'📖',c:0x3498db}]
         };
 
         let currentPool = [];
         let score = 0;
         let isPaused = false;
+        let isGrabbing = false;
         let balloons = [];
-        let currentWordData = null;
         let handTarget = new THREE.Vector3(0,0,0);
+        let currentWordData = null;
 
         // --- 2. 3D 场景 ---
         const canvas = document.getElementById('webgl-canvas');
@@ -202,8 +217,8 @@
         
         camera.position.z = 18;
 
-        scene.add(new THREE.AmbientLight(0xffffff, 0.8));
-        const dl = new THREE.DirectionalLight(0xffffff, 0.7);
+        scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+        const dl = new THREE.DirectionalLight(0xffffff, 0.8);
         dl.position.set(5, 10, 5);
         scene.add(dl);
 
@@ -214,13 +229,23 @@
         const eyeMat = new THREE.MeshBasicMaterial({color:0x000000});
         const el = new THREE.Mesh(new THREE.SphereGeometry(0.25), eyeMat); el.position.set(-0.4,0.3,1); avatar.add(el);
         const er = new THREE.Mesh(new THREE.SphereGeometry(0.25), eyeMat); er.position.set(0.4,0.3,1); avatar.add(er);
-        // 光环
+        // 手
+        const handGeo = new THREE.SphereGeometry(0.35);
+        const handMat = new THREE.MeshBasicMaterial({color:0xffaaaa});
+        const hl = new THREE.Mesh(handGeo, handMat); hl.position.set(-1.4,-0.5,0); avatar.add(hl);
+        const hr = new THREE.Mesh(handGeo, handMat); hr.position.set(1.4,-0.5,0); avatar.add(hr);
         const halo = new THREE.Mesh(new THREE.TorusGeometry(1.6,0.1,16,100), new THREE.MeshBasicMaterial({color:0xffff00}));
         halo.rotation.x = Math.PI/2;
         avatar.add(halo);
         scene.add(avatar);
 
-        // --- 3. 气球系统 (核心调整：概率) ---
+        // 眨眼
+        setInterval(() => {
+            el.scale.y = 0.1; er.scale.y = 0.1;
+            setTimeout(() => { el.scale.y = 1; er.scale.y = 1; }, 150);
+        }, 3000);
+
+        // --- 3. 气球系统 (彩虹 & 金色) ---
         function createTex(emoji) {
             const cvs = document.createElement('canvas'); cvs.width = 256; cvs.height = 256;
             const ctx = cvs.getContext('2d');
@@ -233,16 +258,16 @@
             if (isPaused) return;
             const item = currentPool[Math.floor(Math.random() * currentPool.length)];
             
-            // 概率调整
+            // 稀有度逻辑：金 20%, 彩 15%
             const r = Math.random();
             let type = 'normal';
-            if (r > 0.85) type = 'rainbow'; // 15% 彩虹 (Top 15%)
-            else if (r > 0.65) type = 'gold'; // 20% 金色 (0.65 - 0.85)
+            if(r > 0.85) type = 'rainbow'; // Top 15%
+            else if(r > 0.65) type = 'gold'; // Next 20%
 
             const group = new THREE.Group();
             let color = item.c;
-            if (type === 'gold') color = 0xffd700;
-            if (type === 'rainbow') color = 0xffffff;
+            if(type === 'gold') color = 0xffd700;
+            if(type === 'rainbow') color = 0xffffff;
 
             const mat = new THREE.MeshPhongMaterial({
                 color: color, 
@@ -266,15 +291,16 @@
             balloons.push(group);
         }
 
+        // 粒子
         function spawnExplosion(pos, color, type) {
-            const count = type === 'rainbow' ? 60 : 30; // 彩虹更多粒子
+            const count = type === 'rainbow' ? 60 : 30;
             for(let i=0; i<count; i++) {
                 const c = type === 'rainbow' ? Math.random()*0xffffff : color;
                 const geo = Math.random() > 0.5 ? new THREE.BoxGeometry(0.4,0.4,0.4) : new THREE.SphereGeometry(0.2);
                 const mat = new THREE.MeshBasicMaterial({color:c});
                 const p = new THREE.Mesh(geo, mat);
                 p.position.copy(pos);
-                p.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, 0);
+                p.rotation.set(Math.random()*3, Math.random()*3, 0);
                 scene.add(p);
                 
                 const dest = {
@@ -295,7 +321,10 @@
             
             avatar.position.lerp(handTarget, 0.25);
             avatar.rotation.z = (avatar.position.x - handTarget.x) * -0.15;
-            halo.rotation.z -= 0.05;
+            
+            // 捏合效果
+            const s = isGrabbing ? 0.6 : 1;
+            hl.scale.setScalar(s); hr.scale.setScalar(s);
 
             if(!isPaused) {
                 for(let i=balloons.length-1; i>=0; i--) {
@@ -303,9 +332,13 @@
                     b.position.x -= b.userData.speed;
                     b.position.y += Math.sin(time*2 + i)*0.05;
                     
-                    // 彩虹气球变色
                     if(b.userData.type === 'rainbow') {
                         b.children[0].material.color.setHSL((time * 0.5) % 1, 1, 0.5);
+                    }
+
+                    // 吸附
+                    if(isGrabbing && b.position.distanceTo(avatar.position) < 5) {
+                        b.position.lerp(avatar.position, 0.15);
                     }
 
                     if(b.position.distanceTo(avatar.position) < 2.5) {
@@ -333,18 +366,13 @@
             let txt = "+10";
             let color = "#fff";
             
-            if(type === 'gold') { 
-                pts = 50; txt = "+50 💰"; color = "#ffd700"; 
-                playSynth('win');
-            } else if(type === 'rainbow') { 
-                pts = 100; txt = "RAINBOW!"; color = "#00ffff"; 
-                playSynth('win');
-            } else {
-                playSynth('pop');
-            }
+            if(type === 'gold') { pts = 50; txt = "+50 💰"; color = "#ffd700"; playSynth('win'); }
+            else if(type === 'rainbow') { pts = 100; txt = "RAINBOW!"; color = "#00ffff"; playSynth('win'); }
+            else { playSynth('pop'); }
             
             score += pts;
-            document.getElementById('score').innerText = score;
+            document.getElementById('game-score').innerText = score;
+            document.getElementById('total-score').innerText = score;
             showFloatText(txt, pos, color);
 
             showCard(data);
@@ -362,9 +390,8 @@
             setTimeout(()=>el.remove(), 1000);
         }
 
-        // --- 5. 语音与卡片 ---
+        // --- 5. 语音跟读 ---
         const synth = window.speechSynthesis;
-        
         function showCard(data) {
             isPaused = true;
             currentWordData = data;
@@ -373,7 +400,7 @@
             document.getElementById('c-cn').innerText = data.cn;
             document.getElementById('card-modal').classList.add('active');
             
-            document.getElementById('mic-hint').innerText = "🔊 正在朗读...";
+            document.getElementById('mic-hint').innerText = "🔊 朗读中...";
             document.getElementById('mic-btn').style.display = 'none';
             
             synth.cancel();
@@ -410,7 +437,7 @@
         function onSuccess() {
             playSynth('win');
             spawnExplosion(avatar.position, 0xffff00, 'rainbow');
-            score += 20; document.getElementById('score').innerText = score;
+            score += 20; document.getElementById('game-score').innerText = score;
             setTimeout(() => {
                 document.getElementById('card-modal').classList.remove('active');
                 isPaused = false;
@@ -422,56 +449,7 @@
             isPaused = false;
         };
 
-        // --- 6. 核心：摄像头与追踪 ---
-        const videoElement = document.getElementById('input-video');
-        const radarCtx = document.getElementById('radar-canvas').getContext('2d');
-        const hands = new window.Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
-        hands.setOptions({ maxNumHands: 1, minDetectionConfidence: 0.5 });
-
-        hands.onResults(results => {
-            // 绘制雷达上的绿点
-            radarCtx.clearRect(0,0,120,90);
-            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-                const p = results.multiHandLandmarks[0][8]; // 食指
-                
-                radarCtx.fillStyle = '#0f0';
-                radarCtx.beginPath();
-                radarCtx.arc(p.x*120, p.y*90, 5, 0, Math.PI*2);
-                radarCtx.fill();
-
-                // 坐标映射
-                const rangeX = (camera.aspect * camera.position.z); 
-                const x = (0.5 - p.x) * (rangeX * 2.5); 
-                const y = -(p.y - 0.5) * 35;
-                handTarget.set(x, y, 0);
-            }
-        });
-
-        // 原生 getUserMedia
-        async function startCamera() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
-                });
-                videoElement.srcObject = stream;
-                videoElement.onloadedmetadata = () => {
-                    videoElement.play();
-                    loop();
-                };
-            } catch(e) {
-                document.getElementById('error-bar').style.display = 'block';
-                document.getElementById('error-bar').innerText = "相机启动失败: " + e.message;
-            }
-        }
-
-        async function loop() {
-            if(!isPaused && videoElement.readyState >= 2) {
-                await hands.send({image: videoElement});
-            }
-            requestAnimationFrame(loop);
-        }
-
-        // --- 7. 音频 ---
+        // --- 6. 音频引擎 ---
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         function playSynth(type) {
             if(audioCtx.state === 'suspended') audioCtx.resume();
@@ -481,38 +459,92 @@
             const now = audioCtx.currentTime;
             
             if(type === 'pop') {
-                osc.type = 'triangle';
-                osc.frequency.setValueAtTime(600, now);
-                osc.frequency.exponentialRampToValueAtTime(100, now + 0.1);
-                gain.gain.setValueAtTime(0.3, now);
-                gain.gain.linearRampToValueAtTime(0, now + 0.1);
-                osc.start(now); osc.stop(now + 0.1);
+                osc.type = 'triangle'; osc.frequency.setValueAtTime(600, now);
+                osc.frequency.exponentialRampToValueAtTime(100, now+0.1);
+                gain.gain.setValueAtTime(0.3, now); gain.gain.linearRampToValueAtTime(0, now+0.1);
+                osc.start(now); osc.stop(now+0.1);
             } else if(type === 'win') {
-                osc.type = 'square';
-                osc.frequency.setValueAtTime(500, now);
-                osc.frequency.setValueAtTime(800, now + 0.1);
-                gain.gain.setValueAtTime(0.1, now);
-                gain.gain.linearRampToValueAtTime(0, now + 0.3);
-                osc.start(now); osc.stop(now + 0.3);
+                osc.type = 'square'; osc.frequency.setValueAtTime(500, now);
+                osc.frequency.setValueAtTime(800, now+0.1);
+                gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0, now+0.3);
+                osc.start(now); osc.stop(now+0.3);
             }
         }
 
-        // 启动
-        window.startGame = (cat) => {
+        // --- 7. 视觉修复：强制渲染循环 ---
+        const videoEl = document.getElementById('input-video');
+        const radarCanvas = document.getElementById('radar-canvas');
+        const radarCtx = radarCanvas.getContext('2d');
+        const hands = new window.Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
+        hands.setOptions({ maxNumHands: 1, minDetectionConfidence: 0.5 });
+
+        hands.onResults(results => {
+            // 绘制骨骼，让用户知道 AI 在工作
+            radarCtx.clearRect(0,0,radarCanvas.width,radarCanvas.height);
+            radarCtx.drawImage(results.image, 0, 0, radarCanvas.width, radarCanvas.height);
+            
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                const p = results.multiHandLandmarks[0];
+                const index = p[8];
+                const thumb = p[4];
+                
+                // 画绿点
+                radarCtx.fillStyle = '#0f0';
+                radarCtx.beginPath();
+                radarCtx.arc(index.x*radarCanvas.width, index.y*radarCanvas.height, 5, 0, Math.PI*2);
+                radarCtx.fill();
+                
+                // 坐标映射
+                const rangeX = (camera.aspect * camera.position.z); 
+                const x = (0.5 - index.x) * (rangeX * 2.5); 
+                const y = -(index.y - 0.5) * 35;
+                handTarget.set(x, y, 0);
+
+                // 捏合
+                const dist = Math.hypot(index.x - thumb.x, index.y - thumb.y);
+                isGrabbing = dist < 0.05;
+            }
+        });
+
+        // 强力驱动循环
+        async function detectLoop() {
+            if (videoEl.readyState >= 2 && !videoEl.paused) {
+                await hands.send({image: videoEl});
+            }
+            requestAnimationFrame(detectLoop);
+        }
+
+        // 启动函数
+        window.startGame = async (cat) => {
             currentPool = DB[cat];
             document.getElementById('lobby-screen').style.display = 'none';
             document.getElementById('game-ui').style.display = 'block';
+            
             audioCtx.resume();
-            startCamera();
+            
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'user', width: {ideal: 640}, height: {ideal: 480} }
+                });
+                videoEl.srcObject = stream;
+                videoEl.onloadedmetadata = () => {
+                    videoEl.play();
+                    // 调整雷达 canvas 尺寸匹配视频流比例
+                    radarCanvas.width = videoEl.videoWidth / 4;
+                    radarCanvas.height = videoEl.videoHeight / 4;
+                    detectLoop(); // 启动 AI 循环
+                };
+                log("相机启动成功");
+            } catch(e) {
+                alert("相机错误: " + e.message);
+            }
+
             animate();
             setInterval(spawnBalloon, 1800);
         };
 
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
+        window.addEventListener('resize', resize);
+        window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
     </script>
 </body>
 </html>
