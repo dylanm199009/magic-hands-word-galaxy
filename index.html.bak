@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Magic Hands: Sky Explorer</title>
+    <title>Magic Hands: Dream Flight</title>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -12,34 +12,27 @@
 </head>
 <body>
     <div id="game-app">
-        <!-- 启动大厅 -->
+        <!-- 动态云层背景 -->
+        <div class="cloud-bg"></div>
+
+        <!-- 启动界面 -->
         <div id="start-screen">
-            <div class="sky-bg-vfx"></div>
-            <h1 class="game-title">Magic Hands</h1>
-            <p class="game-subtitle">云端单词大冒险</p>
-            <div class="level-selector">
-                <button onclick="startGame(0)">关卡 1: 森林动物</button>
-                <button onclick="startGame(1)">关卡 2: 美味水果</button>
-                <button onclick="startGame(2)">关卡 3: 交通工具</button>
-            </div>
+            <h1 class="title">✨ MAGIC FLIGHT</h1>
+            <p class="subtitle">Catch the floating bubbles!</p>
+            <button onclick="startGame()">GO!</button>
         </div>
 
-        <!-- 游戏 HUD -->
+        <!-- 游戏界面 -->
         <div id="hud" style="display: none;">
-            <div class="score-tag">?? <span id="score">0</span></div>
-            <div class="level-tag">LEVEL: <span id="level-name">-</span></div>
+            <div class="score-pill">⭐ <span id="score">0</span></div>
             
-            <!-- 核心 3D 翻转卡片容器 -->
-            <div id="card-container" class="flip-container">
-                <div class="flipper">
-                    <div class="front">
-                        <div id="w-icon">?</div>
-                    </div>
-                    <div class="back">
-                        <h1 id="w-en">WORD</h1>
-                        <h2 id="w-cn">中文</h2>
-                        <div id="w-pron">/phonetic/</div>
-                    </div>
+            <!-- 学习卡片弹窗 -->
+            <div id="learning-card" class="card-hidden">
+                <div class="card-content">
+                    <div id="card-icon">🍎</div>
+                    <h2 id="card-en">APPLE</h2>
+                    <h3 id="card-cn">...</h3>
+                    <div id="card-pron">/sound/</div>
                 </div>
             </div>
         </div>

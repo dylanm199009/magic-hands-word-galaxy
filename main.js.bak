@@ -1,22 +1,27 @@
-import * as THREE from 'three';
+ï»¿// --- 0. æ£€æŸ¥çŽ¯å¢ƒ (CDNæ¨¡å¼ä¸‹ THREE æ˜¯å…¨å±€å˜é‡) ---
+if (typeof THREE === 'undefined') {
+    throw new Error("Three.js not loaded! Check network.");
+}
 
-// 1. ´Ê¿â£º¹Ø¼üÐÞ¸´£¡Ê¹ÓÃ Unicode ±àÂë½â¾öÖÐÎÄÂÒÂë
-// \u732b = Ã¨, \u72d7 = ¹·, \u82f9\u679c = Æ»¹û ...
+// --- 1. è¯åº“ (Unicode ç¼–ç é˜²ä¹±ç ) ---
 const WORD_POOL = [
-    { en: 'APPLE', cn: '\u82f9\u679c', icon: '??', pron: '/\u02c8\u00e6p.l/', color: 0xff8a80 },
-    { en: 'BANANA', cn: '\u9999\u8549', icon: '??', pron: '/b\u0259\u02c8n\u00e6n.\u0259/', color: 0xffd180 },
-    { en: 'CAT', cn: '\u732b\u54aa', icon: '??', pron: '/k\u00e6t/', color: 0x80deea },
-    { en: 'DOG', cn: '\u5c0f\u72d7', icon: '??', pron: '/d\u0254\u02d0\u0261/', color: 0xa1887f },
-    { en: 'ROCKET', cn: '\u706b\u7bad', icon: '??', pron: '/\u02c8r\u0251\u02d0.k\u026at/', color: 0xea80fc },
-    { en: 'STAR', cn: '\u661f\u661f', icon: '?', pron: '/st\u0251\u02d0r/', color: 0xfff59d }
+    { en: 'APPLE', cn: '\u82f9\u679c', icon: 'ðŸŽ', pron: '/\u00e6pl/', color: 0xff8a80 }, // è‹¹æžœ
+    { en: 'BANANA', cn: '\u9999\u8549', icon: 'ðŸŒ', pron: '/b\u0259\u02c8n\u00e6n\u0259/', color: 0xffd180 }, // é¦™è•‰
+    { en: 'CAT', cn: '\u732b\u54aa', icon: 'ðŸ±', pron: '/k\u00e6t/', color: 0x80deea }, // çŒ«
+    { en: 'DOG', cn: '\u5c0f\u72d7', icon: 'ðŸ¶', pron: '/d\u0254\u02d0\u0261/', color: 0xa1887f }, // ç‹—
+    { en: 'CAR', cn: '\u6c7d\u8f66', icon: 'ðŸš—', pron: '/k\u0251\u02d0r/', color: 0x90caf9 }, // æ±½è½¦
+    { en: 'STAR', cn: '\u661f\u661f', icon: 'â­', pron: '/st\u0251\u02d0r/', color: 0xfff59d } // æ˜Ÿæ˜Ÿ
 ];
 
-// 2. ³¡¾°ÉèÖÃ
+// --- 2. åœºæ™¯åˆå§‹åŒ– ---
+const canvas = document.getElementById('game-canvas');
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('game-canvas'), antialias: true, alpha: true });
+const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(window.devicePixelRatio); // ä¼˜åŒ–é«˜æ¸…å±
 
+// ç¯å…‰
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
 const dirLight = new THREE.DirectionalLight(0xffffff, 0.5);
 dirLight.position.set(10, 10, 10);
@@ -24,146 +29,84 @@ scene.add(ambientLight);
 scene.add(dirLight);
 camera.position.z = 10;
 
-// 3. ¸¨Öúº¯Êý£ºÉú³É Emoji ÌùÍ¼ (ÎÞÐèÉÏ´«Í¼Æ¬)
+// --- 3. è¾…åŠ©åŠŸèƒ½ï¼šç»˜åˆ¶ Emoji è´´å›¾ ---
 function createEmojiTexture(emoji, colorHex) {
-    const canvas = document.createElement('canvas');
-    canvas.width = 128; canvas.height = 128;
-    const ctx = canvas.getContext('2d');
+    const cvs = document.createElement('canvas');
+    cvs.width = 256; cvs.height = 256; // æé«˜åˆ†è¾¨çŽ‡
+    const ctx = cvs.getContext('2d');
     
-    // ±³¾°É«
+    // ç”»åœ†åº•
     ctx.fillStyle = '#' + new THREE.Color(colorHex).getHexString();
     ctx.beginPath();
-    ctx.arc(64, 64, 60, 0, Math.PI * 2);
+    ctx.arc(128, 128, 120, 0, Math.PI * 2);
     ctx.fill();
     
-    // Emoji
-    ctx.font = '80px Arial';
+    // ç”» Emoji
+    ctx.font = '140px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(emoji, 64, 70);
+    ctx.fillText(emoji, 128, 138);
     
-    return new THREE.CanvasTexture(canvas);
+    const tex = new THREE.CanvasTexture(cvs);
+    return tex;
 }
 
-// 4. ÆøÅÝÏµÍ³ (Bubble System)
-const bubbles = []; // ´æ·ÅËùÓÐ»î¶¯ÆøÅÝ
-const bubbleSpeed = 0.05;
-let isPaused = false; // Ñ§Ï°¿¨Æ¬µ¯³öÊ±ÔÝÍ£ÓÎÏ·
+// --- 4. æ¸¸æˆå¯¹è±¡ç®¡ç† ---
+const bubbles = [];
+let score = 0;
+let isPaused = false;
 
+// ç”Ÿæˆæ°”æ³¡
 function spawnBubble() {
     if (isPaused) return;
-    
-    // Ëæ»úÑ¡Ò»¸öµ¥´Ê
-    const wordData = WORD_POOL[Math.floor(Math.random() * WORD_POOL.length)];
-    
-    const geometry = new THREE.SphereGeometry(1.2, 32, 32);
-    const material = new THREE.MeshPhongMaterial({ 
-        map: createEmojiTexture(wordData.icon, wordData.color),
-        transparent: true,
-        opacity: 0.9,
-        shininess: 50
+
+    const data = WORD_POOL[Math.floor(Math.random() * WORD_POOL.length)];
+    const geo = new THREE.SphereGeometry(1.3, 32, 32);
+    const mat = new THREE.MeshPhongMaterial({ 
+        map: createEmojiTexture(data.icon, data.color),
+        transparent: true, opacity: 0.95 
     });
     
-    const bubble = new THREE.Mesh(geometry, material);
+    const b = new THREE.Mesh(geo, mat);
+    // åˆå§‹ä½ç½®ï¼šå±å¹•å³å¤–ä¾§
+    b.position.set(14, (Math.random() - 0.5) * 8, 0);
     
-    // ³õÊ¼Î»ÖÃ£ºÆÁÄ»×îÓÒ²àÖ®Íâ
-    bubble.position.x = 12; 
-    // YÖáËæ»ú¸ß¶È
-    bubble.position.y = (Math.random() - 0.5) * 8; 
-    bubble.userData = { 
-        word: wordData, 
-        offset: Math.random() * 10, // ÓÃÓÚÉÏÏÂ¸¡¶¯µÄËæ»úÏàÎ»
-        speed: 0.05 + Math.random() * 0.03 // Ëæ»úËÙ¶È
+    b.userData = { 
+        word: data, 
+        speed: 0.05 + Math.random() * 0.04, // éšæœºé€Ÿåº¦
+        yOffset: Math.random() * 100 // æ³¢åŠ¨ç›¸ä½
     };
     
-    scene.add(bubble);
-    bubbles.push(bubble);
+    scene.add(b);
+    bubbles.push(b);
 }
 
-// 5. ÊÖÊÆ¹â±ê (Ä§·¨ÊÖ)
+// æ‰‹åŠ¿å…‰æ ‡ (é­”æ³•å…‰çƒ)
+const cursorGroup = new THREE.Group();
 const cursorMesh = new THREE.Mesh(
     new THREE.SphereGeometry(0.3, 16, 16),
     new THREE.MeshBasicMaterial({ color: 0xffffff })
 );
-// ¼Ó¸ö¹â»·
 const cursorRing = new THREE.Mesh(
-    new THREE.RingGeometry(0.4, 0.5, 32),
-    new THREE.MeshBasicMaterial({ color: 0xffeb3b, side: THREE.DoubleSide })
+    new THREE.RingGeometry(0.5, 0.6, 32),
+    new THREE.MeshBasicMaterial({ color: 0xffff00, side: THREE.DoubleSide })
 );
-cursorMesh.add(cursorRing);
-scene.add(cursorMesh);
+cursorGroup.add(cursorMesh);
+cursorGroup.add(cursorRing);
+scene.add(cursorGroup);
 
-// 6. ÓÎÏ·½»»¥Âß¼­
-let score = 0;
-let handPos = new THREE.Vector3(0, 0, 0);
-
-function showCard(wordData) {
-    isPaused = true;
-    
-    // ¸üÐÂ UI
-    document.getElementById('card-icon').innerText = wordData.icon;
-    document.getElementById('card-en').innerText = wordData.en;
-    document.getElementById('card-cn').innerText = wordData.cn; // ÕâÀïÒÑ¾­ÊÇ Unicode£¬¾ø¶Ô²»ÂÒÂë
-    document.getElementById('card-pron').innerText = wordData.pron;
-    
-    const cardEl = document.getElementById('learning-card');
-    cardEl.classList.add('visible');
-    
-    // ·¢Òô
-    const utter = new SpeechSynthesisUtterance(wordData.en);
-    utter.rate = 0.8;
-    window.speechSynthesis.speak(utter);
-    
-    // 2.5Ãëºó×Ô¶¯¹Ø±Õ
-    setTimeout(() => {
-        cardEl.classList.remove('visible');
-        isPaused = false;
-    }, 2500);
-}
-
-// 7. ¶¯»­Ñ­»·
+// --- 5. æ ¸å¿ƒå¾ªçŽ¯ ---
 const clock = new THREE.Clock();
+let handPos = new THREE.Vector3(0, 0, 0);
 
 function animate() {
     requestAnimationFrame(animate);
     const time = clock.getElapsedTime();
-    
-    // 1. ¹â»·¶¯»­
+
+    // 1. å…‰æ ‡è·Ÿéšæ‰‹åŠ¿ (Lerp å¹³æ»‘)
+    cursorGroup.position.lerp(handPos, 0.15);
     cursorRing.rotation.z -= 0.05;
-    
+
     if (!isPaused) {
-        // 2. ÆøÅÝÂß¼­
-        for (let i = bubbles.length - 1; i >= 0; i--) {
-            const b = bubbles[i];
-            
-            // Ïò×óÒÆ¶¯
-            b.position.x -= b.userData.speed;
-            // ÉÏÏÂ¸¡¶¯ (Sine wave)
-            b.position.y += Math.sin(time * 2 + b.userData.offset) * 0.02;
-            b.rotation.z -= 0.01;
-            
-            // Åö×²¼ì²â
-            const dist = b.position.distanceTo(handPos);
-            if (dist < 1.5) {
-                // »÷ÖÐ£¡
-                score += 10;
-                document.getElementById('score').innerText = score;
-                
-                // ÒÆ³ýÆøÅÝ
-                scene.remove(b);
-                bubbles.splice(i, 1);
-                
-                // ´¥·¢Ñ§Ï°ÊÂ¼þ
-                showCard(b.userData.word);
-            }
-            
-            // ³¬³öÆÁÄ»×ó²àÒÆ³ý
-            else if (b.position.x < -12) {
-                scene.remove(b);
-                bubbles.splice(i, 1);
-            }
-        }
-    }
-    
-    renderer.render(scene, camera);
-}
+        // 2. æ°”æ³¡é€»è¾‘
+        for (let i = bubbles.length - 1; i >= 0; i
