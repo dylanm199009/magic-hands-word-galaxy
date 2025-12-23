@@ -1,39 +1,45 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Magic Hands: Word Galaxy Pro</title>
+    <!-- 依赖库：MediaPipe + Three.js + GSAP(物理动画) -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
-    <!-- 引入 Three.js 及其扩展 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     <link rel="stylesheet" href="./style.css">
 </head>
 <body>
-    <div id="app">
-        <!-- 启动封面 -->
-        <div id="loading-overlay">
-            <div class="pixar-loader"></div>
-            <h1>?? 正在前往单词星系...</h1>
-        </div>
+    <div id="game-container">
+        <!-- 背景层：Canvas 会渲染到这里 -->
+        <canvas id="game-canvas"></canvas>
 
-        <!-- 游戏 UI 层 -->
-        <div id="ui-layer">
-            <div class="score-container">? <span id="score">0</span></div>
-            
-            <div id="word-card">
-                <div id="word-en">APPLE</div>
-                <div id="word-cn">苹果</div>
-                <div id="pronunciation">/??p.?l/</div>
+        <!-- UI 层 -->
+        <div id="overlay-ui">
+            <div class="header">
+                <div class="score-badge">? STARS: <span id="score">0</span></div>
             </div>
 
-            <div id="feedback-text">PERFECT!</div>
+            <div id="word-card" class="glass-card">
+                <div class="label">LEARN THIS WORD</div>
+                <h1 id="word-en">APPLE</h1>
+                <h2 id="word-cn">苹果</h2>
+                <div id="pron">/??p.?l/</div>
+            </div>
+
+            <div id="interaction-hint">用手触碰发光的星球！</div>
         </div>
 
-        <!-- 摄像头预览 -->
         <video id="webcam" autoplay playsinline></video>
-        <canvas id="game-canvas"></canvas>
+        
+        <!-- 加载动画 -->
+        <div id="loader">
+            <div class="orb"></div>
+            <p>正在召唤魔法宇宙...</p>
+        </div>
     </div>
     <script type="module" src="/main.js"></script>
 </body>
