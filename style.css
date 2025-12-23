@@ -1,0 +1,75 @@
+:root {
+  --primary-glow: #ff00ff;
+  --secondary-glow: #00ffff;
+}
+
+body {
+  margin: 0;
+  background: #050510;
+  color: white;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  overflow: hidden;
+}
+
+#ui-container {
+  position: absolute;
+  top: 40px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 10;
+  pointer-events: none;
+}
+
+#word-card {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(15px);
+  padding: 20px 60px;
+  border-radius: 30px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 0 40px rgba(255, 0, 255, 0.3);
+}
+
+#target-word {
+  font-size: 80px;
+  font-weight: 900;
+  background: linear-gradient(45deg, #fff, #ff99ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 10px rgba(255,255,255,0.5));
+}
+
+#webcam {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  width: 200px;
+  height: 150px;
+  border-radius: 20px;
+  border: 3px solid var(--secondary-glow);
+  transform: scaleX(-1);
+  object-fit: cover;
+}
+
+#loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle, #1a1a3a, #050510);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 100;
+}
+
+.loader {
+  width: 60px;
+  height: 60px;
+  border: 5px solid #333;
+  border-top: 5px solid var(--primary-glow);
+  border-radius: 50%;
+  animation: spin 1s infinite linear;
+}
+
+@keyframes spin { 100% { transform: rotate(360deg); } }
