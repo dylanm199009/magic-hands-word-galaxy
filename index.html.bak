@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Magic Garden V26 (iOS Fixed)</title>
+    <title>Magic Garden V27 (iOS Core Fix)</title>
     
     <!-- 核心库 -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
@@ -17,16 +17,17 @@
 
         body, html { margin: 0; overflow: hidden; font-family: 'Fredoka', sans-serif; background: #222; touch-action: none; }
 
-        /* 背景 */
+        /* 全屏背景 */
         #sky-gradient {
             position: fixed; inset: 0; z-index: -2;
-            background: linear-gradient(180deg, #a1c4fd 0%, #c2e9fb 100%);
+            background: linear-gradient(180deg, #a18cd1 0%, #fbc2eb 100%);
         }
 
-        /* 调试条 (顶部) */
+        /* 调试条 (显示真实运行状态) */
         #debug-bar {
-            position: fixed; top: 0; left: 0; width: 100%; background: rgba(0,0,0,0.6);
-            color: #0f0; font-size: 10px; padding: 2px; z-index: 99999; text-align: center;
+            position: fixed; top: 0; left: 0; width: 100%; background: rgba(0,0,0,0.7);
+            color: #0f0; font-size: 11px; padding: 4px; z-index: 99999; text-align: center;
+            pointer-events: none;
         }
 
         /* 1. 大厅 */
@@ -35,9 +36,8 @@
             background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px);
             display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
-        .logo h1 { color: #0984e3; font-size: 40px; margin: 0; text-shadow: 2px 2px #fff; }
+        .logo h1 { color: #6c5ce7; font-size: 40px; margin: 0; text-shadow: 2px 2px #fff; }
         
-        /* 关卡列表 */
         .level-grid {
             display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; 
             width: 95%; max-width: 500px; max-height: 50vh; overflow-y: auto; padding: 10px;
@@ -51,29 +51,16 @@
         }
         .lvl-btn:active { transform: scale(0.95); }
 
-        #status-msg { margin-top: 20px; color: #888; font-size: 14px; animation: blink 1s infinite; }
-        @keyframes blink { 50% { opacity: 0.5; } }
+        #status-msg { margin-top: 20px; color: #888; font-size: 14px; }
 
         /* 2. 游戏 HUD */
         #game-ui { position: fixed; inset: 0; pointer-events: none; z-index: 10; display: none; }
         .top-bar { 
-            position: absolute; top: 20px; left: 0; width: 100%; padding: 0 20px;
+            position: absolute; top: 30px; left: 0; width: 100%; padding: 0 20px;
             display: flex; justify-content: space-between; box-sizing: border-box; 
         }
         .score-box { font-size: 32px; color: #fdcb6e; font-weight: 900; text-shadow: 2px 2px 0 #d63031; }
         .home-btn { pointer-events: auto; padding: 8px 15px; background: #ff7675; border: none; border-radius: 10px; color: white; font-weight: bold; }
-
-        /* 特效层 */
-        #vfx-layer { position: fixed; inset: 0; pointer-events: none; z-index: 20; overflow: hidden; }
-        .float-text {
-            position: absolute; font-weight: 900; text-shadow: 2px 2px 0 #000;
-            animation: floatUp 1s forwards; font-size: 40px; white-space: nowrap;
-        }
-        @keyframes floatUp {
-            0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
-            50% { transform: translate(-50%, -100px) scale(1.2); opacity: 1; }
-            100% { transform: translate(-50%, -200px) scale(1); opacity: 0; }
-        }
 
         /* 3. 学习卡片 */
         #card-modal {
@@ -96,35 +83,45 @@
         }
         @keyframes pulse { 70% { box-shadow: 0 0 0 15px rgba(0, 206, 201, 0); } }
 
-        /* 4. 摄像头预览 (合并 Video 和 Radar Canvas) */
+        /* 4. 摄像头预览 (关键：尺寸必须匹配) */
         #cam-container {
-            position: fixed; bottom: 10px; right: 10px; width: 140px; height: 186px; /* 3:4 比例 */
-            background: #000; border: 3px solid white; border-radius: 15px; z-index: 50;
+            position: fixed; bottom: 10px; right: 10px; width: 144px; height: 192px; /* 3:4 比例 */
+            background: #000; border: 2px solid white; border-radius: 10px; z-index: 50;
             overflow: hidden; pointer-events: none;
         }
-        /* 视频元素：必须可见且层级正确 */
         #input-video {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            object-fit: cover; transform: scaleX(-1);
+            /* 必须填满容器 */
+            width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1);
         }
-        /* 绘制绿点的画布 */
         #radar-canvas {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             transform: scaleX(-1); z-index: 2;
+        }
+
+        /* 浮动文字 */
+        #vfx-layer { position: fixed; inset: 0; pointer-events: none; z-index: 20; overflow: hidden; }
+        .float-text {
+            position: absolute; font-weight: 900; text-shadow: 2px 2px 0 #000;
+            animation: floatUp 1s forwards; font-size: 40px; white-space: nowrap;
+        }
+        @keyframes floatUp {
+            0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+            50% { transform: translate(-50%, -100px) scale(1.2); opacity: 1; }
+            100% { transform: translate(-50%, -200px) scale(1); opacity: 0; }
         }
 
         #webgl-canvas { position: fixed; inset: 0; z-index: 0; }
     </style>
 </head>
 <body>
-    <div id="debug-bar">V26 等待启动...</div>
+    <div id="debug-bar">初始化系统...</div>
     <div id="sky-gradient"></div>
 
     <!-- 大厅 -->
     <div id="lobby-screen">
         <div class="logo">
             <h1>🌸 奇幻花园</h1>
-            <p>V26 终极修复版</p>
+            <p>V27 iOS 内核修复版</p>
         </div>
         <div class="level-grid">
             <button class="lvl-btn" onclick="startGame('animals')" style="--c:#ff7675">🦁<br>动物</button>
@@ -136,7 +133,7 @@
             <button class="lvl-btn" onclick="startGame('vehicles')" style="--c:#636e72">🚗<br>交通</button>
             <button class="lvl-btn" onclick="startGame('action')" style="--c:#e17055">🏃<br>动作</button>
         </div>
-        <div id="status-msg">点击分类启动相机...</div>
+        <div id="status-msg">点击分类 -> 允许相机 -> 游戏开始</div>
     </div>
 
     <!-- 游戏 UI -->
@@ -159,42 +156,45 @@
         </div>
     </div>
 
-    <!-- 摄像头预览 (Video 和 Canvas 都在这里) -->
+    <!-- 摄像头预览 (重要：iOS 必须检测尺寸) -->
     <div id="cam-container">
-        <video id="input-video" playsinline webkit-playsinline muted autoplay></video>
+        <!-- 移除 autoplay，完全由 JS 控制 -->
+        <video id="input-video" playsinline webkit-playsinline muted></video>
         <canvas id="radar-canvas"></canvas>
     </div>
 
     <canvas id="webgl-canvas"></canvas>
 
     <script>
-        // --- 0. 日志调试 ---
+        // --- 0. 调试日志 ---
         function log(msg) {
             document.getElementById('debug-bar').innerText = msg;
             console.log(msg);
         }
-        window.onerror = (e) => log("Err: " + e);
+        window.onerror = (e) => log("Error: " + e);
 
-        // --- 1. 词库 ---
+        // --- 1. 海量词库 ---
         const DB = {
-            animals: [{en:'LION',cn:'狮子',i:'🦁',c:0xffa502},{en:'TIGER',cn:'老虎',i:'🐯',c:0xff6348},{en:'CAT',cn:'猫咪',i:'🐱',c:0xff6b6b},{en:'DOG',cn:'小狗',i:'🐶',c:0x54a0ff},{en:'PANDA',cn:'熊猫',i:'🐼',c:0x2f3542},{en:'RABBIT',cn:'兔子',i:'🐰',c:0xffffff},{en:'PIG',cn:'小猪',i:'🐷',c:0xffcccc},{en:'BEAR',cn:'熊',i:'🐻',c:0x8d6e63},{en:'FROG',cn:'青蛙',i:'🐸',c:0x2ecc71},{en:'KOALA',cn:'考拉',i:'🐨',c:0x95afc0}],
+            animals: [{en:'LION',cn:'狮子',i:'🦁',c:0xffa502},{en:'TIGER',cn:'老虎',i:'🐯',c:0xff6348},{en:'CAT',cn:'猫咪',i:'🐱',c:0xff6b6b},{en:'DOG',cn:'小狗',i:'🐶',c:0x54a0ff},{en:'PANDA',cn:'熊猫',i:'🐼',c:0x2f3542},{en:'RABBIT',cn:'兔子',i:'🐰',c:0xffffff},{en:'PIG',cn:'小猪',i:'🐷',c:0xffcccc},{en:'BEAR',cn:'熊',i:'🐻',c:0x8d6e63},{en:'FROG',cn:'青蛙',i:'🐸',c:0x2ecc71},{en:'KOALA',cn:'考拉',i:'🐨',c:0x95afc0},{en:'FOX',cn:'狐狸',i:'🦊',c:0xe17055},{en:'ZEBRA',cn:'斑马',i:'🦓',c:0x2d3436},{en:'GIRAFFE',cn:'长颈鹿',i:'🦒',c:0xf1c40f},{en:'ELEPHANT',cn:'大象',i:'🐘',c:0xbdc3c7},{en:'MONKEY',cn:'猴子',i:'🐵',c:0xd35400}],
             fruits: [{en:'APPLE',cn:'苹果',i:'🍎',c:0xff4757},{en:'BANANA',cn:'香蕉',i:'🍌',c:0xffeaa7},{en:'GRAPE',cn:'葡萄',i:'🍇',c:0xa29bfe},{en:'PEACH',cn:'桃子',i:'🍑',c:0xfdcb6e},{en:'MELON',cn:'甜瓜',i:'🍈',c:0x55efc4},{en:'CHERRY',cn:'樱桃',i:'🍒',c:0xd63031},{en:'LEMON',cn:'柠檬',i:'🍋',c:0xf1c40f},{en:'ORANGE',cn:'橙子',i:'🍊',c:0xe67e22},{en:'WATERMELON',cn:'西瓜',i:'🍉',c:0x2ecc71}],
             colors: [{en:'RED',cn:'红色',i:'🔴',c:0xff0000},{en:'BLUE',cn:'蓝色',i:'🔵',c:0x0000ff},{en:'GREEN',cn:'绿色',i:'🟢',c:0x00ff00},{en:'YELLOW',cn:'黄色',i:'🟡',c:0xffff00},{en:'PURPLE',cn:'紫色',i:'🟣',c:0x800080},{en:'ORANGE',cn:'橙色',i:'🟠',c:0xffa500},{en:'BLACK',cn:'黑色',i:'⚫',c:0x000000},{en:'WHITE',cn:'白色',i:'⚪',c:0xffffff}],
             numbers: [{en:'ONE',cn:'一',i:'1️⃣',c:0x74b9ff},{en:'TWO',cn:'二',i:'2️⃣',c:0x0984e3},{en:'THREE',cn:'三',i:'3️⃣',c:0x6c5ce7},{en:'FOUR',cn:'四',i:'4️⃣',c:0xa29bfe},{en:'FIVE',cn:'五',i:'5️⃣',c:0x00cec9},{en:'SIX',cn:'六',i:'6️⃣',c:0xff7675},{en:'SEVEN',cn:'七',i:'7️⃣',c:0xfdcb6e},{en:'EIGHT',cn:'八',i:'8️⃣',c:0x6a0572},{en:'NINE',cn:'九',i:'9️⃣',c:0xab352f},{en:'TEN',cn:'十',i:'🔟',c:0x52b4bf}],
-            body: [{en:'EYE',cn:'眼睛',i:'👁️',c:0xffffff},{en:'EAR',cn:'耳朵',i:'👂',c:0xf7d794},{en:'NOSE',cn:'鼻子',i:'👃',c:0xf5cd79},{en:'MOUTH',cn:'嘴巴',i:'👄',c:0xff6b81},{en:'HAND',cn:'手',i:'🖐️',c:0xffcccc},{en:'FOOT',cn:'脚',i:'🦶',c:0xf7d794}],
-            vehicles: [{en:'CAR',cn:'汽车',i:'🚗',c:0xe74c3c},{en:'BUS',cn:'巴士',i:'🚌',c:0xf1c40f},{en:'PLANE',cn:'飞机',i:'✈️',c:0x3498db},{en:'SHIP',cn:'轮船',i:'🚢',c:0x34495e},{en:'BIKE',cn:'自行车',i:'🚲',c:0x2ecc71},{en:'ROCKET',cn:'火箭',i:'🚀',c:0x8e44ad}],
-            nature: [{en:'SUN',cn:'太阳',i:'☀️',c:0xf1c40f},{en:'MOON',cn:'月亮',i:'🌙',c:0xf1c40f},{en:'STAR',cn:'星星',i:'⭐',c:0xf1c40f},{en:'CLOUD',cn:'云',i:'☁️',c:0xffffff},{en:'RAIN',cn:'雨',i:'🌧️',c:0x3498db},{en:'SNOW',cn:'雪',i:'❄️',c:0xffffff}],
-            action: [{en:'RUN',cn:'跑',i:'🏃',c:0xe74c3c},{en:'JUMP',cn:'跳',i:'🦘',c:0xf1c40f},{en:'SWIM',cn:'游泳',i:'🏊',c:0x3498db},{en:'EAT',cn:'吃',i:'🍽️',c:0xe67e22},{en:'SLEEP',cn:'睡觉',i:'💤',c:0x34495e},{en:'DANCE',cn:'跳舞',i:'💃',c:0x9b59b6}]
+            body: [{en:'EYE',cn:'眼睛',i:'👁️',c:0xffffff},{en:'EAR',cn:'耳朵',i:'👂',c:0xf7d794},{en:'NOSE',cn:'鼻子',i:'👃',c:0xf5cd79},{en:'MOUTH',cn:'嘴巴',i:'👄',c:0xff6b81},{en:'HAND',cn:'手',i:'🖐️',c:0xffcccc},{en:'FOOT',cn:'脚',i:'🦶',c:0xf7d794},{en:'ARM',cn:'手臂',i:'💪',c:0xf7d794},{en:'LEG',cn:'腿',i:'🦵',c:0xf7d794},{en:'HEAD',cn:'头',i:'🗣️',c:0xf7d794}],
+            vehicles: [{en:'CAR',cn:'汽车',i:'🚗',c:0xe74c3c},{en:'BUS',cn:'巴士',i:'🚌',c:0xf1c40f},{en:'PLANE',cn:'飞机',i:'✈️',c:0x3498db},{en:'SHIP',cn:'轮船',i:'🚢',c:0x34495e},{en:'BIKE',cn:'自行车',i:'🚲',c:0x2ecc71},{en:'ROCKET',cn:'火箭',i:'🚀',c:0x8e44ad},{en:'TRAIN',cn:'火车',i:'🚂',c:0x2c3e50}],
+            nature: [{en:'SUN',cn:'太阳',i:'☀️',c:0xf1c40f},{en:'MOON',cn:'月亮',i:'🌙',c:0xf1c40f},{en:'STAR',cn:'星星',i:'⭐',c:0xf1c40f},{en:'CLOUD',cn:'云',i:'☁️',c:0xffffff},{en:'RAIN',cn:'雨',i:'🌧️',c:0x3498db},{en:'SNOW',cn:'雪',i:'❄️',c:0xffffff},{en:'TREE',cn:'树',i:'🌳',c:0x27ae60},{en:'FLOWER',cn:'花',i:'🌸',c:0xe84393}],
+            action: [{en:'RUN',cn:'跑',i:'🏃',c:0xe74c3c},{en:'JUMP',cn:'跳',i:'🦘',c:0xf1c40f},{en:'SWIM',cn:'游泳',i:'🏊',c:0x3498db},{en:'EAT',cn:'吃',i:'🍽️',c:0xe67e22},{en:'SLEEP',cn:'睡觉',i:'💤',c:0x34495e},{en:'DANCE',cn:'跳舞',i:'💃',c:0x9b59b6},{en:'SING',cn:'唱歌',i:'🎤',c:0x2ecc71},{en:'READ',cn:'读',i:'📖',c:0x3498db}]
         };
 
         let currentPool = [];
         let score = 0;
         let isPaused = false;
+        let isGrabbing = false;
         let balloons = [];
-        let currentWordData = null;
         let handTarget = new THREE.Vector3(0,0,0);
+        let currentWordData = null;
 
         // --- 2. 3D 场景 ---
+        if (typeof THREE === 'undefined') { log("THREE 库未加载"); }
         const canvas = document.getElementById('webgl-canvas');
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -207,6 +207,7 @@
         }
         window.addEventListener('resize', resize);
         resize();
+        
         camera.position.z = 18;
 
         scene.add(new THREE.AmbientLight(0xffffff, 0.7));
@@ -216,7 +217,7 @@
 
         // 主角
         const avatar = new THREE.Group();
-        const body = new THREE.Mesh(new THREE.SphereGeometry(1.2), new THREE.MeshPhongMaterial({color:0xffffff}));
+        const body = new THREE.Mesh(new THREE.SphereGeometry(1.2, 32, 32), new THREE.MeshPhongMaterial({color:0xffffff}));
         avatar.add(body);
         const eyeMat = new THREE.MeshBasicMaterial({color:0x000000});
         const el = new THREE.Mesh(new THREE.SphereGeometry(0.25), eyeMat); el.position.set(-0.4,0.3,1); avatar.add(el);
@@ -236,14 +237,14 @@
         }
 
         function spawnBalloon() {
-            if(isPaused) return;
+            if (isPaused) return;
             const item = currentPool[Math.floor(Math.random() * currentPool.length)];
             
-            // 稀有度调整：金 20%, 彩 15%
+            // 稀有度
             const r = Math.random();
             let type = 'normal';
-            if(r > 0.85) type = 'rainbow'; 
-            else if(r > 0.65) type = 'gold'; 
+            if(r > 0.85) type = 'rainbow'; // 15% 彩虹
+            else if(r > 0.65) type = 'gold'; // 20% 金色
 
             const group = new THREE.Group();
             let color = item.c;
@@ -272,7 +273,7 @@
             balloons.push(group);
         }
 
-        // 粒子爆炸
+        // 粒子
         function spawnExplosion(pos, color, type) {
             const count = type === 'rainbow' ? 60 : 30;
             for(let i=0; i<count; i++) {
@@ -281,6 +282,7 @@
                 const mat = new THREE.MeshBasicMaterial({color:c});
                 const p = new THREE.Mesh(geo, mat);
                 p.position.copy(pos);
+                p.rotation.set(Math.random()*3, Math.random()*3, 0);
                 scene.add(p);
                 
                 const dest = {
@@ -361,7 +363,7 @@
             setTimeout(()=>el.remove(), 1000);
         }
 
-        // --- 5. 语音跟读 (修复卡死) ---
+        // --- 5. 语音跟读 (iOS 修复版) ---
         const synth = window.speechSynthesis;
         let ttsTimer = null;
 
@@ -376,40 +378,47 @@
             document.getElementById('mic-hint').innerText = "🔊 朗读中...";
             document.getElementById('mic-btn').style.display = 'none';
             
-            // 朗读
             synth.cancel();
             const u = new SpeechSynthesisUtterance(data.en);
             u.lang = 'en-US'; u.rate = 0.9;
             
-            // 强制回调：防止 TTS 丢包卡死
+            // 关键修复：iOS 经常丢包，加一个强制回调
             clearTimeout(ttsTimer);
-            const onEnd = () => {
+            const done = () => {
                 document.getElementById('mic-hint').innerText = "🎤 点击麦克风跟读";
                 document.getElementById('mic-btn').style.display = 'block';
             };
-            u.onend = onEnd;
-            ttsTimer = setTimeout(onEnd, 2000); // 2秒强制显示
+            u.onend = done;
+            ttsTimer = setTimeout(done, 1500); // 1.5秒后强制显示，防止死等
 
             synth.speak(u);
         }
 
         window.startSpeechRec = () => {
             document.getElementById('mic-hint').innerText = "👂 正在听...";
-            // 简单模拟成功，因为 iOS 不支持 webSpeechRecognition
+            // 模拟识别 (兼容 iOS)
             setTimeout(() => {
                 document.getElementById('mic-hint').innerText = "🌟 完美!";
-                playSynth('win');
-                score += 20; document.getElementById('score').innerText = score;
-                setTimeout(window.closeCard, 1500);
+                onSuccess();
             }, 1000);
         };
+
+        function onSuccess() {
+            playSynth('win');
+            spawnExplosion(avatar.position, 0xffff00, 'rainbow');
+            score += 20; document.getElementById('score').innerText = score;
+            setTimeout(() => {
+                document.getElementById('card-modal').classList.remove('active');
+                isPaused = false;
+            }, 1500);
+        }
 
         window.closeCard = () => {
             document.getElementById('card-modal').classList.remove('active');
             isPaused = false;
         };
 
-        // --- 6. 核心：摄像头与追踪 (视觉修复) ---
+        // --- 6. 核心：摄像头与追踪 (iOS 视觉修复) ---
         const videoElement = document.getElementById('input-video');
         const radarCanvas = document.getElementById('radar-canvas');
         const radarCtx = radarCanvas.getContext('2d');
@@ -417,12 +426,13 @@
         hands.setOptions({ maxNumHands: 1, minDetectionConfidence: 0.5 });
 
         hands.onResults(results => {
-            // 清空并绘制视频帧到 Radar Canvas
+            // 清除雷达
             radarCtx.clearRect(0, 0, radarCanvas.width, radarCanvas.height);
             radarCtx.save();
             radarCtx.scale(-1, 1);
             radarCtx.translate(-radarCanvas.width, 0);
-            // 绘制视频帧作为背景，确认视频流有数据
+            
+            // 绘制视频背景
             if (results.image) {
                 radarCtx.drawImage(results.image, 0, 0, radarCanvas.width, radarCanvas.height);
             }
@@ -431,9 +441,10 @@
             if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
                 const p = results.multiHandLandmarks[0][8]; // 食指
                 
-                // 画绿点
+                // 画骨骼点 (让用户知道识别到了)
                 radarCtx.fillStyle = '#0f0';
                 radarCtx.beginPath();
+                // 注意：坐标 x 已经翻转过
                 radarCtx.arc((1-p.x)*radarCanvas.width, p.y*radarCanvas.height, 5, 0, Math.PI*2);
                 radarCtx.fill();
 
@@ -443,13 +454,11 @@
                 const y = -(p.y - 0.5) * 35;
                 handTarget.set(x, y, 0);
                 
-                log("检测到手势");
-            } else {
-                log("寻找手势...");
+                log("Detecting Hand...");
             }
         });
 
-        // 强力驱动循环
+        // 强力检测循环
         async function detectLoop() {
             if (videoElement.readyState >= 2 && !videoElement.paused) {
                 await hands.send({image: videoElement});
@@ -460,20 +469,23 @@
         // 原生摄像头启动
         async function startCamera() {
             try {
-                // 使用理想分辨率，防止 iOS 拒绝
+                // 强制要求宽高，防止 iOS 默认 0x0
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: { facingMode: 'user', width: 640, height: 480 }
                 });
                 videoElement.srcObject = stream;
+                // 必须在 metadata 加载后设置宽高并播放
                 videoElement.onloadedmetadata = () => {
-                    videoElement.play();
-                    // 设置 radar canvas 尺寸
+                    videoElement.width = videoElement.videoWidth;
+                    videoElement.height = videoElement.videoHeight;
                     radarCanvas.width = videoElement.videoWidth;
                     radarCanvas.height = videoElement.videoHeight;
-                    detectLoop(); 
+                    videoElement.play();
+                    detectLoop();
                 };
+                log("相机启动成功");
             } catch(e) {
-                alert("相机启动失败: " + e.message);
+                alert("相机错误: " + e.message);
             }
         }
 
@@ -503,12 +515,17 @@
             }
         }
 
-        // 启动
+        // 启动 (包含音频解锁)
         window.startGame = (cat) => {
             currentPool = DB[cat];
             document.getElementById('lobby-screen').style.display = 'none';
             document.getElementById('game-ui').style.display = 'block';
+            
+            // 欺骗浏览器解锁音频
             audioCtx.resume();
+            const u = new SpeechSynthesisUtterance('');
+            synth.speak(u);
+
             startCamera();
             animate();
             setInterval(spawnBalloon, 1800);
