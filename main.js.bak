@@ -109,4 +109,131 @@ function animate() {
 
     if (!isPaused) {
         // 2. 气泡逻辑
-        for (let i = bubbles.length - 1; i >= 0; i
+        for (let i = bubbles.length - 1; i >= 0; i--) {
+            const b = bubbles[i];
+            
+            // 向左飞行
+            b.position.x -= b.userData.speed;
+            // 上下正弦波动
+            b.position.y += Math.sin(time * 3 + b.userData.yOffset) * 0.03;
+            b.rotation.z -= 0.01;
+
+            // 碰撞检测
+            const dist = b.position.distanceTo(cursorGroup.position);
+            
+            // 距离小于 1.8 且 气泡还在屏幕内
+            if (dist < 1.8 && b.position.x > -14) {
+                // ---> 击中！ <---
+                handleHit(b, i);
+            }
+            
+            // 超出左边界移除
+            if (b.position.x < -14) {
+                scene.remove(b);
+                bubbles.splice(i, 1);
+            }
+        }
+    }
+    
+    renderer.render(scene, camera);
+}
+
+function handleHit(bubbleMesh, index) {
+    // 移除气泡
+    scene.remove(bubbleMesh);
+    bubbles.splice(index, 1);
+    
+    // 加分
+    score += 10;
+    document.getElementById('score').innerText = score;
+    
+    // 播放音效 (合成音，无需文件)
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(500, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.2);
+    osc.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.2);
+
+    // 展示卡片
+    showCard(bubbleMesh.userData.word);
+}
+
+function showCard(wordData) {
+    isPaused = true;
+    
+    // 更新 DOM
+    document.getElementById('card-icon').innerText = wordData.icon;
+    document.getElementById('card-en').innerText = wordData.en;
+    document.getElementById('card-cn').innerText = wordData.cn;
+    document.getElementById('card-pron').innerText = wordData.pron;
+    
+    // 显示动画
+    const card = document.getElementById('learning-card');
+    card.style.opacity = '1';
+    card.style.pointerEvents = 'auto';
+    card.style.transform = 'scale(1)';
+    
+    // 朗读
+    const utter = new SpeechSynthesisUtterance(wordData.en);
+    utter.lang = 'en-US';
+    utter.rate = 0.8;
+    window.speechSynthesis.speak(utter);
+    
+    // 2.5秒后恢复
+    setTimeout(() => {
+        card.style.opacity = '0';
+        card.style.pointerEvents = 'none';
+        card.style.transform = 'scale(0.8)';
+        isPaused = false;
+    }, 2500);
+}
+
+// --- 6. 手势识别 MediaPipe ---
+const hands = new window.Hands({
+    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+});
+hands.setOptions({ maxNumHands: 1, minDetectionConfidence: 0.7 });
+
+hands.onResults(results => {
+    if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+        const p = results.multiHandLandmarks[0][8]; // 食指指尖
+        // 坐标映射
+        const x = (p.x - 0.5) * 25; 
+        const y = -(p.y - 0.5) * 15;
+        handPos.set(x, y, 0);
+    }
+});
+
+const cameraUtils = new window.Camera(document.getElementById('game-app').querySelector('video'), {
+    onFrame: async () => { await hands.send({image: document.getElementById('game-app').querySelector('video')}); },
+    width: 640, height: 480
+});
+
+// --- 7. 绑定开始按钮 (核心修复点) ---
+// 不使用 window.startGame，而是直接绑定事件监听，更安全
+document.getElementById('btn-go').addEventListener('click', () => {
+    console.log("Game Starting...");
+    
+    // UI 切换
+    document.getElementById('start-screen').style.display = 'none';
+    document.getElementById('hud').style.display = 'block';
+    
+    // 启动引擎
+    cameraUtils.start();
+    animate();
+    setInterval(spawnBubble, 2000); // 每2秒生成一个气泡
+    
+    // 预热音频
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    ctx.resume();
+});
+
+// 响应窗口大小变化
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});

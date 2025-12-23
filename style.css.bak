@@ -1,58 +1,63 @@
-/* 解决乱码，使用更现代的圆体 */
-@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&display=swap');
 
-body, html {
-    margin: 0; padding: 0; overflow: hidden;
-    font-family: 'Fredoka', "PingFang SC", "Microsoft YaHei", sans-serif;
-    background: #a5f3fc; /* 天蓝色 */
+body, html { margin: 0; overflow: hidden; font-family: 'Fredoka', sans-serif; background: #87CEEB; }
+
+/* 动态云层动画 */
+.cloud-bg {
+    position: absolute; width: 200%; height: 100%;
+    background: url('https://raw.githubusercontent.com/dylanm199009/assets/main/clouds.png') repeat-x; 
+    /* 如果没有图片，用渐变代替 */
+    background: linear-gradient(to bottom, #87CEEB 0%, #E0F7FA 100%);
+    z-index: 0;
 }
 
 #start-screen {
     position: fixed; inset: 0; z-index: 100;
-    background: linear-gradient(to bottom, #7dd3fc, #e0f2fe);
+    background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px);
     display: flex; flex-direction: column; align-items: center; justify-content: center;
 }
 
-.game-title { font-size: 80px; color: #0369a1; margin: 0; text-shadow: 4px 4px 0 white; }
-.game-subtitle { font-size: 24px; color: #0ea5e9; margin-bottom: 40px; }
-
-.level-selector button {
-    display: block; width: 280px; padding: 15px; margin: 10px;
-    border: none; border-radius: 20px; background: white; color: #0369a1;
-    font-size: 20px; font-weight: 600; cursor: pointer;
-    box-shadow: 0 4px 0 #bae6fd; transition: transform 0.2s;
+.title { font-size: 60px; color: #ff6b6b; margin-bottom: 10px; text-shadow: 2px 2px white; }
+.subtitle { font-size: 20px; color: #555; margin-bottom: 30px; }
+button {
+    padding: 15px 60px; font-size: 24px; background: #ff6b6b; color: white;
+    border: none; border-radius: 50px; cursor: pointer;
+    box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4);
+    transition: transform 0.2s;
 }
-.level-selector button:hover { transform: scale(1.05); }
+button:hover { transform: scale(1.1); }
 
-#hud { position: absolute; inset: 0; pointer-events: none; z-index: 10; }
-.score-tag { position: absolute; top: 30px; left: 30px; font-size: 32px; color: #f59e0b; font-weight: bold; background: white; padding: 10px 30px; border-radius: 40px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
-
-/* 3D 翻转卡片样式 */
-.flip-container {
-    perspective: 1000px;
-    position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%);
-    width: 320px; height: 380px; opacity: 0;
+#hud { position: absolute; inset: 0; z-index: 20; pointer-events: none; }
+.score-pill {
+    position: absolute; top: 20px; left: 20px;
+    background: white; padding: 10px 25px; border-radius: 30px;
+    font-size: 24px; color: #ffae00; font-weight: bold;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
 }
-.flipper {
-    position: relative; width: 100%; height: 100%;
-    transition: 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-    transform-style: preserve-3d;
+
+/* 学习卡片：玻璃拟态 + 弹跳动画 */
+#learning-card {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.4);
+    opacity: 0; pointer-events: none; transition: opacity 0.3s;
 }
-.flip-container.active { opacity: 1; }
-.flip-container.flipped .flipper { transform: rotateY(180deg); }
+#learning-card.visible { opacity: 1; pointer-events: auto; }
 
-.front, .back {
-    position: absolute; width: 100%; height: 100%;
-    backface-visibility: hidden; border-radius: 40px;
-    background: white; border: 8px solid #f0f9ff;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+.card-content {
+    background: white; width: 300px; padding: 30px; border-radius: 40px;
+    text-align: center; transform: scale(0.8); transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    border: 8px solid #E0F7FA;
 }
-.back { transform: rotateY(180deg); background: #f0fdf4; border-color: #dcfce7; }
+#learning-card.visible .card-content { transform: scale(1); }
 
-#w-icon { font-size: 140px; }
-#w-en { font-size: 56px; color: #166534; margin: 0; }
-#w-cn { font-size: 32px; color: #15803d; }
-#w-pron { font-size: 20px; color: #86efac; }
+#card-icon { font-size: 100px; filter: drop-shadow(0 10px 20px rgba(0,0,0,0.2)); }
+#card-en { font-size: 48px; color: #333; margin: 10px 0 0; }
+#card-cn { font-size: 28px; color: #00BCD4; margin: 5px 0; } /* 解决乱码的关键在于字体和编码 */
+#card-pron { font-size: 18px; color: #999; }
 
-#webcam { position: absolute; bottom: 20px; right: 20px; width: 180px; border-radius: 20px; border: 4px solid white; transform: scaleX(-1); }
+#webcam {
+    position: absolute; bottom: 20px; right: 20px; width: 160px;
+    border-radius: 20px; border: 4px solid white; transform: scaleX(-1);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+}

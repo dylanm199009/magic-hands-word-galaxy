@@ -3,31 +3,47 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Magic Hands: Dream Flight</title>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <title>Magic Hands: Dream Flight V8</title>
+    
+    <!-- 1. 加载样式 -->
     <link rel="stylesheet" href="./style.css">
+
+    <!-- 2. 按顺序加载核心库 (CDN) -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    
+    <style>
+        /* 错误日志显示区，万一报错你能看到 */
+        #debug-console {
+            position: fixed; top: 0; left: 0; width: 100%; background: rgba(255,0,0,0.8);
+            color: white; z-index: 9999; font-size: 14px; padding: 10px; display: none;
+        }
+    </style>
 </head>
 <body>
+    <!-- 错误显示区 -->
+    <div id="debug-console"></div>
+
     <div id="game-app">
-        <!-- 动态云层背景 -->
         <div class="cloud-bg"></div>
 
         <!-- 启动界面 -->
         <div id="start-screen">
-            <h1 class="title">✨ MAGIC FLIGHT</h1>
-            <p class="subtitle">Catch the floating bubbles!</p>
-            <button onclick="startGame()">GO!</button>
+            <h1 class="title">✨ 魔法飞行</h1>
+            <p class="subtitle">Magic Flight</p>
+            <p style="font-size: 14px; color: #666; margin-bottom: 20px;">伸出你的手，触碰飞过的气泡</p>
+            <!-- 按钮绑定点击事件 -->
+            <button id="btn-go">GO! (开始)</button>
         </div>
 
-        <!-- 游戏界面 -->
+        <!-- 游戏 HUD -->
         <div id="hud" style="display: none;">
             <div class="score-pill">⭐ <span id="score">0</span></div>
             
-            <!-- 学习卡片弹窗 -->
-            <div id="learning-card" class="card-hidden">
+            <!-- 学习卡片 -->
+            <div id="learning-card">
                 <div class="card-content">
                     <div id="card-icon">🍎</div>
                     <h2 id="card-en">APPLE</h2>
@@ -37,9 +53,20 @@
             </div>
         </div>
 
-        <video id="webcam" playsinline></video>
+        <video id="webcam" playsinline style="display:none"></video> <!-- 隐藏原始视频，只显示Canvas -->
         <canvas id="game-canvas"></canvas>
     </div>
-    <script type="module" src="/main.js"></script>
+
+    <!-- 3. 加载主逻辑 -->
+    <script type="module" src="./main.js"></script>
+
+    <script>
+        // 全局错误捕获，如果报错直接显示在屏幕上
+        window.onerror = function(msg, url, line) {
+            const div = document.getElementById('debug-console');
+            div.style.display = 'block';
+            div.innerHTML += `❌ Error: ${msg} (Line ${line})<br>`;
+        };
+    </script>
 </body>
 </html>
