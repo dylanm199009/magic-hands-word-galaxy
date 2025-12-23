@@ -2,9 +2,11 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Magic Hands: Word Galaxy</title>
+    <!-- 引入外部 CDN，跳过构建错误 -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
     <link rel="stylesheet" href="./style.css">
 </head>
 <body>
@@ -13,16 +15,10 @@
             <div class="loader"></div>
             <p>正在连接星际能量...</p>
         </div>
-        
         <div id="ui-container">
-            <div id="word-card">
-                <span id="target-word">APPLE</span>
-            </div>
-            <div id="stats">
-                <div class="stat-item">? <span id="score">0</span></div>
-            </div>
+            <div id="word-card"><span id="target-word">APPLE</span></div>
+            <div id="stats"><div class="stat-item">? <span id="score">0</span></div></div>
         </div>
-
         <video id="webcam" autoplay playsinline></video>
         <canvas id="game-canvas"></canvas>
     </div>
