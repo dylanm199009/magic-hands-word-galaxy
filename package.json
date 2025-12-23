@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "three": "^0.150.0",
-    "@mediapipe/hands": "^0.4.1646424915",
-    "@mediapipe/camera_utils": "^0.4.1646424315"
+    "@mediapipe/hands": "0.4.1646424915",
+    "@mediapipe/camera_utils": "0.4.1646424315"
   }
 }
