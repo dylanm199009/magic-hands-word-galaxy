@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Magic Hands: Wonderland V11</title>
+    <title>Magic Hands: Magic Party V12</title>
     
+    <!-- 核心库 -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" crossorigin="anonymous"></script>
@@ -13,61 +14,59 @@
     <link rel="stylesheet" href="./style.css">
 </head>
 <body>
-    <!-- 动态背景 -->
-    <div id="bg-gradient"></div>
+    <!-- 动态星空背景 -->
+    <div id="star-bg"></div>
 
-    <!-- 1. 首页：关卡选择 -->
-    <div id="home-screen">
-        <div class="logo-box">
-            <h1>🌈 奇幻单词大冒险</h1>
-            <p>Magic Wonderland</p>
+    <!-- 1. 关卡选择大厅 -->
+    <div id="lobby">
+        <div class="title-area">
+            <h1>✨ 魔法单词派对</h1>
+            <p>Magic Word Party</p>
         </div>
         
-        <p class="hint-text">请选择一个关卡开始挑战：</p>
+        <div class="level-container">
+            <button class="card-btn" onclick="startGame('animals')" style="--theme:#ff7675">
+                <div class="icon">🦁</div>
+                <div class="label">动物乐园</div>
+            </button>
+            <button class="card-btn" onclick="startGame('food')" style="--theme:#fdcb6e">
+                <div class="icon">🍔</div>
+                <div class="label">美食大街</div>
+            </button>
+            <button class="card-btn" onclick="startGame('magic')" style="--theme:#a29bfe">
+                <div class="icon">🦄</div>
+                <div class="label">魔法世界</div>
+            </button>
+        </div>
         
-        <div class="level-grid">
-            <button class="lvl-btn" onclick="window.selectLevel('animals')" style="--clr:#ff6b6b">
-                🦁<br>动物森林
-            </button>
-            <button class="lvl-btn" onclick="window.selectLevel('food')" style="--clr:#feca57">
-                🍔<br>美食天地
-            </button>
-            <button class="lvl-btn" onclick="window.selectLevel('vehicles')" style="--clr:#48dbfb">
-                🚀<br>交通工具
-            </button>
-            <button class="lvl-btn" onclick="window.selectLevel('nature')" style="--clr:#1dd1a1">
-                🌲<br>自然探索
-            </button>
-        </div>
-
-        <div class="status-bar">
-            <span id="cam-status">🎥 正在启动摄像头...</span>
-        </div>
+        <div class="loading-text">📷 等待摄像头启动...</div>
     </div>
 
-    <!-- 2. 游戏 HUD -->
-    <div id="game-hud">
-        <div class="top-bar">
-            <div class="score-pill">⭐ <span id="score">0</span></div>
-            <button id="btn-back" onclick="window.location.reload()">🏠 返回</button>
+    <!-- 2. 游戏界面 -->
+    <div id="game-ui">
+        <div class="header">
+            <div class="score-badge">🏆 <span id="score">0</span></div>
+            <button class="back-btn" onclick="location.reload()">退出</button>
         </div>
+
+        <!-- 浮动得分特效容器 -->
+        <div id="floating-text-container"></div>
         
-        <!-- 学习卡片弹窗 -->
-        <div id="card-popup">
-            <div class="card-body">
-                <div id="c-icon">🍎</div>
-                <h2 id="c-en">APPLE</h2>
-                <h3 id="c-cn">苹果</h3>
-                <div id="c-pron">/ˈæp.əl/</div>
-                <div class="speaker-icon">🔊</div>
+        <!-- 学习卡片 -->
+        <div id="study-card">
+            <div class="card-inner">
+                <div id="card-icon">🍎</div>
+                <h2 id="card-en">APPLE</h2>
+                <h3 id="card-cn">苹果</h3>
+                <div id="card-pron">/ˈæp.l/</div>
             </div>
         </div>
     </div>
 
-    <!-- 3. 摄像头预览小窗 (方便调试) -->
-    <video id="cam-feed" playsinline muted autoplay></video>
+    <!-- 调试小窗 (让你确认手势是否被识别) -->
+    <video id="cam-debug" playsinline muted autoplay></video>
     
-    <!-- 3D 场景 -->
+    <!-- 3D 画布 -->
     <canvas id="game-canvas"></canvas>
 
     <script type="module" src="./main.js"></script>
