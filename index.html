@@ -1,24 +1,37 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Magic Hands: Word Galaxy</title>
-    <!-- 引入外部 CDN，跳过构建错误 -->
+    <title>Magic Hands: Word Galaxy Pro</title>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <!-- 引入 Three.js 及其扩展 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <link rel="stylesheet" href="./style.css">
 </head>
 <body>
     <div id="app">
+        <!-- 启动封面 -->
         <div id="loading-overlay">
-            <div class="loader"></div>
-            <p>正在连接星际能量...</p>
+            <div class="pixar-loader"></div>
+            <h1>?? 正在前往单词星系...</h1>
         </div>
-        <div id="ui-container">
-            <div id="word-card"><span id="target-word">APPLE</span></div>
-            <div id="stats"><div class="stat-item">? <span id="score">0</span></div></div>
+
+        <!-- 游戏 UI 层 -->
+        <div id="ui-layer">
+            <div class="score-container">? <span id="score">0</span></div>
+            
+            <div id="word-card">
+                <div id="word-en">APPLE</div>
+                <div id="word-cn">苹果</div>
+                <div id="pronunciation">/??p.?l/</div>
+            </div>
+
+            <div id="feedback-text">PERFECT!</div>
         </div>
+
+        <!-- 摄像头预览 -->
         <video id="webcam" autoplay playsinline></video>
         <canvas id="game-canvas"></canvas>
     </div>
