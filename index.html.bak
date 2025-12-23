@@ -3,43 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Magic Garden V18 (Stable)</title>
+    <title>Magic Garden V19 Ultimate</title>
     
-    <!-- 1. 核心库 (CDN) - 必须按顺序加载 -->
+    <!-- 核心库 (CDN 全局加载) -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
 
     <link rel="stylesheet" href="./style.css">
-    
-    <style>
-        /* 错误日志条 */
-        #error-console {
-            position: fixed; top: 0; left: 0; width: 100%; background: rgba(200, 0, 0, 0.9);
-            color: white; font-size: 12px; padding: 10px; z-index: 99999; display: none;
-        }
-    </style>
 </head>
 <body>
-    <!-- 错误显示 -->
-    <div id="error-console"></div>
-
-    <!-- 背景 -->
+    <!-- 动态背景 -->
     <div id="sky-gradient"></div>
 
-    <!-- 1. 启动大厅 -->
+    <!-- 1. 启动大厅 (包含成长树) -->
     <div id="lobby-screen">
         <div class="logo-area">
             <h1>🌸 奇幻花园</h1>
-            <p>V18 稳定修复版</p>
+            <p>V19 终极完整版</p>
         </div>
 
+        <!-- 魔法成长树 -->
         <div class="tree-container">
-            <div id="magic-tree">🌳</div>
-            <div class="tree-stats">等级: <span id="user-lvl">1</span> | 分数: <span id="total-score">0</span></div>
+            <div id="magic-tree">🌱</div>
+            <div class="tree-stats">
+                等级: <span id="user-lvl">1</span> | 总分: <span id="total-score">0</span>
+            </div>
         </div>
 
+        <!-- 关卡滑块 -->
         <div class="level-scroller">
             <button onclick="startGame('animals')" style="--theme:#ff6348">🦁<br>动物</button>
             <button onclick="startGame('fruits')" style="--theme:#ff9f43">🍎<br>水果</button>
@@ -47,20 +39,23 @@
             <button onclick="startGame('numbers')" style="--theme:#1dd1a1">🔢<br>数字</button>
             <button onclick="startGame('body')" style="--theme:#feca57">👀<br>身体</button>
             <button onclick="startGame('vehicles')" style="--theme:#6c5ce7">🚗<br>交通</button>
+            <button onclick="startGame('nature')" style="--theme:#00b894">🌳<br>自然</button>
+            <button onclick="startGame('action')" style="--theme:#e17055">🏃<br>动作</button>
         </div>
 
-        <div id="system-log">⏳ 系统初始化中...</div>
+        <div id="system-log">⏳ 等待相机授权...</div>
     </div>
 
     <!-- 2. 游戏 HUD -->
     <div id="game-ui">
         <div class="hud-header">
             <div class="score-badge">✨ <span id="game-score">0</span></div>
-            <div class="combo-badge" id="combo-display" style="opacity:0">⭐ Combo!</div>
-            <button class="quit-btn" onclick="location.reload()">🏠 退出</button>
+            <!-- 连击特效 -->
+            <div class="combo-badge" id="combo-display">Combo x2!</div>
+            <button class="quit-btn" onclick="location.reload()">🏠 回家</button>
         </div>
 
-        <!-- 学习卡片 -->
+        <!-- 学习卡片 (跟读模式) -->
         <div id="study-modal">
             <div class="modal-card">
                 <div id="card-icon">🍎</div>
@@ -69,36 +64,31 @@
                 <h3 id="card-cn">苹果</h3>
                 
                 <div class="mic-area">
-                    <div id="mic-status">🎤 点击麦克风跟读</div>
-                    <button id="btn-mic" onclick="startSpeech()">🎙️</button>
+                    <div id="mic-status">🔊 正在朗读...</div>
+                    <!-- 麦克风按钮 -->
+                    <button id="btn-mic" onclick="startSpeechRec()">
+                        <div class="mic-icon">🎙️</div>
+                        <div class="mic-wave"></div>
+                    </button>
                     <button id="btn-skip" onclick="closeCard()">跳过</button>
                 </div>
             </div>
         </div>
-        
+
+        <!-- 浮动特效容器 (星星、加分) -->
         <div id="vfx-container"></div>
     </div>
 
-    <!-- 3. iOS 视频修复 -->
+    <!-- 3. 视频流 (iOS 修复：移出屏幕但可见) -->
     <video id="input-video" playsinline webkit-playsinline muted autoplay></video>
     
     <!-- 4. 调试雷达 -->
     <canvas id="radar-canvas" width="120" height="90"></canvas>
 
-    <!-- 5. 主画布 -->
+    <!-- 5. 主 3D 画布 -->
     <canvas id="webgl-canvas"></canvas>
 
-    <!-- 注意：这里不加 type="module"，当作普通脚本执行 -->
+    <!-- 逻辑脚本 (无 module，防止 crash) -->
     <script src="./main.js"></script>
-
-    <script>
-        // 全局错误捕获
-        window.onerror = function(msg, url, line) {
-            const el = document.getElementById('error-console');
-            el.style.display = 'block';
-            el.innerText = `❌ 错误: ${msg} (Line: ${line})`;
-            return false;
-        };
-    </script>
 </body>
 </html>
