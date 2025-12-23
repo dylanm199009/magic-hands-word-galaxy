@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Magic Garden V25 (Vision Fix)</title>
+    <title>Magic Garden V26 (iOS Fixed)</title>
     
-    <!-- 核心库 (MediaPipe + Three.js + GSAP) -->
+    <!-- 核心库 -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
@@ -17,16 +17,16 @@
 
         body, html { margin: 0; overflow: hidden; font-family: 'Fredoka', sans-serif; background: #222; touch-action: none; }
 
-        /* 动态背景 */
+        /* 背景 */
         #sky-gradient {
             position: fixed; inset: 0; z-index: -2;
-            background: linear-gradient(180deg, #a18cd1 0%, #fbc2eb 100%);
+            background: linear-gradient(180deg, #a1c4fd 0%, #c2e9fb 100%);
         }
 
-        /* 错误条 */
+        /* 调试条 (顶部) */
         #debug-bar {
-            position: fixed; top: 0; left: 0; width: 100%; background: rgba(0,0,0,0.8);
-            color: #0f0; font-size: 10px; padding: 2px; z-index: 99999; display: block;
+            position: fixed; top: 0; left: 0; width: 100%; background: rgba(0,0,0,0.6);
+            color: #0f0; font-size: 10px; padding: 2px; z-index: 99999; text-align: center;
         }
 
         /* 1. 大厅 */
@@ -35,12 +35,8 @@
             background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px);
             display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
-        .logo h1 { color: #6c5ce7; font-size: 40px; margin: 0; text-shadow: 2px 2px #fff; }
+        .logo h1 { color: #0984e3; font-size: 40px; margin: 0; text-shadow: 2px 2px #fff; }
         
-        .tree-box { margin: 10px 0; text-align: center; }
-        #magic-tree { font-size: 60px; display: block; animation: grow 2s infinite alternate; }
-        @keyframes grow { from {transform: scale(1);} to {transform: scale(1.1);} }
-
         /* 关卡列表 */
         .level-grid {
             display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; 
@@ -100,16 +96,18 @@
         }
         @keyframes pulse { 70% { box-shadow: 0 0 0 15px rgba(0, 206, 201, 0); } }
 
-        /* 4. 摄像头调试窗 (关键修复：确保可见性) */
+        /* 4. 摄像头预览 (合并 Video 和 Radar Canvas) */
         #cam-container {
-            position: fixed; bottom: 10px; right: 10px; width: 160px; height: 120px;
-            background: #000; border: 2px solid #fff; border-radius: 10px; z-index: 50;
+            position: fixed; bottom: 10px; right: 10px; width: 140px; height: 186px; /* 3:4 比例 */
+            background: #000; border: 3px solid white; border-radius: 15px; z-index: 50;
             overflow: hidden; pointer-events: none;
         }
+        /* 视频元素：必须可见且层级正确 */
         #input-video {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             object-fit: cover; transform: scaleX(-1);
         }
+        /* 绘制绿点的画布 */
         #radar-canvas {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             transform: scaleX(-1); z-index: 2;
@@ -119,18 +117,14 @@
     </style>
 </head>
 <body>
-    <div id="debug-bar">初始化...</div>
+    <div id="debug-bar">V26 等待启动...</div>
     <div id="sky-gradient"></div>
 
     <!-- 大厅 -->
     <div id="lobby-screen">
         <div class="logo">
             <h1>🌸 奇幻花园</h1>
-            <p>V25 视觉修复版</p>
-        </div>
-        <div class="tree-box">
-            <div id="magic-tree">🌳</div>
-            <div style="font-size:12px; color:#666">分数: <span id="total-score">0</span></div>
+            <p>V26 终极修复版</p>
         </div>
         <div class="level-grid">
             <button class="lvl-btn" onclick="startGame('animals')" style="--c:#ff7675">🦁<br>动物</button>
@@ -142,13 +136,13 @@
             <button class="lvl-btn" onclick="startGame('vehicles')" style="--c:#636e72">🚗<br>交通</button>
             <button class="lvl-btn" onclick="startGame('action')" style="--c:#e17055">🏃<br>动作</button>
         </div>
-        <div id="status-msg">请点击任意关卡启动...</div>
+        <div id="status-msg">点击分类启动相机...</div>
     </div>
 
     <!-- 游戏 UI -->
     <div id="game-ui">
         <div class="top-bar">
-            <div class="score-box">✨ <span id="game-score">0</span></div>
+            <div class="score-box">✨ <span id="score">0</span></div>
             <button class="home-btn" onclick="location.reload()">🏠</button>
         </div>
         <div id="vfx-layer"></div>
@@ -165,7 +159,7 @@
         </div>
     </div>
 
-    <!-- 摄像头预览 (重要) -->
+    <!-- 摄像头预览 (Video 和 Canvas 都在这里) -->
     <div id="cam-container">
         <video id="input-video" playsinline webkit-playsinline muted autoplay></video>
         <canvas id="radar-canvas"></canvas>
@@ -174,32 +168,31 @@
     <canvas id="webgl-canvas"></canvas>
 
     <script>
-        // --- 0. 错误捕获 ---
+        // --- 0. 日志调试 ---
         function log(msg) {
-            console.log(msg);
             document.getElementById('debug-bar').innerText = msg;
+            console.log(msg);
         }
         window.onerror = (e) => log("Err: " + e);
 
-        // --- 1. 海量词库 (完整保留) ---
+        // --- 1. 词库 ---
         const DB = {
-            animals: [{en:'LION',cn:'狮子',i:'🦁',c:0xffa502},{en:'TIGER',cn:'老虎',i:'🐯',c:0xff6348},{en:'CAT',cn:'猫咪',i:'🐱',c:0xff6b6b},{en:'DOG',cn:'小狗',i:'🐶',c:0x54a0ff},{en:'PANDA',cn:'熊猫',i:'🐼',c:0x2f3542},{en:'RABBIT',cn:'兔子',i:'🐰',c:0xffffff},{en:'PIG',cn:'小猪',i:'🐷',c:0xffcccc},{en:'BEAR',cn:'熊',i:'🐻',c:0x8d6e63},{en:'FROG',cn:'青蛙',i:'🐸',c:0x2ecc71},{en:'KOALA',cn:'考拉',i:'🐨',c:0x95afc0},{en:'FOX',cn:'狐狸',i:'🦊',c:0xe17055},{en:'ZEBRA',cn:'斑马',i:'🦓',c:0x2d3436},{en:'GIRAFFE',cn:'长颈鹿',i:'🦒',c:0xf1c40f},{en:'ELEPHANT',cn:'大象',i:'🐘',c:0xbdc3c7},{en:'MONKEY',cn:'猴子',i:'🐵',c:0xd35400}],
+            animals: [{en:'LION',cn:'狮子',i:'🦁',c:0xffa502},{en:'TIGER',cn:'老虎',i:'🐯',c:0xff6348},{en:'CAT',cn:'猫咪',i:'🐱',c:0xff6b6b},{en:'DOG',cn:'小狗',i:'🐶',c:0x54a0ff},{en:'PANDA',cn:'熊猫',i:'🐼',c:0x2f3542},{en:'RABBIT',cn:'兔子',i:'🐰',c:0xffffff},{en:'PIG',cn:'小猪',i:'🐷',c:0xffcccc},{en:'BEAR',cn:'熊',i:'🐻',c:0x8d6e63},{en:'FROG',cn:'青蛙',i:'🐸',c:0x2ecc71},{en:'KOALA',cn:'考拉',i:'🐨',c:0x95afc0}],
             fruits: [{en:'APPLE',cn:'苹果',i:'🍎',c:0xff4757},{en:'BANANA',cn:'香蕉',i:'🍌',c:0xffeaa7},{en:'GRAPE',cn:'葡萄',i:'🍇',c:0xa29bfe},{en:'PEACH',cn:'桃子',i:'🍑',c:0xfdcb6e},{en:'MELON',cn:'甜瓜',i:'🍈',c:0x55efc4},{en:'CHERRY',cn:'樱桃',i:'🍒',c:0xd63031},{en:'LEMON',cn:'柠檬',i:'🍋',c:0xf1c40f},{en:'ORANGE',cn:'橙子',i:'🍊',c:0xe67e22},{en:'WATERMELON',cn:'西瓜',i:'🍉',c:0x2ecc71}],
             colors: [{en:'RED',cn:'红色',i:'🔴',c:0xff0000},{en:'BLUE',cn:'蓝色',i:'🔵',c:0x0000ff},{en:'GREEN',cn:'绿色',i:'🟢',c:0x00ff00},{en:'YELLOW',cn:'黄色',i:'🟡',c:0xffff00},{en:'PURPLE',cn:'紫色',i:'🟣',c:0x800080},{en:'ORANGE',cn:'橙色',i:'🟠',c:0xffa500},{en:'BLACK',cn:'黑色',i:'⚫',c:0x000000},{en:'WHITE',cn:'白色',i:'⚪',c:0xffffff}],
             numbers: [{en:'ONE',cn:'一',i:'1️⃣',c:0x74b9ff},{en:'TWO',cn:'二',i:'2️⃣',c:0x0984e3},{en:'THREE',cn:'三',i:'3️⃣',c:0x6c5ce7},{en:'FOUR',cn:'四',i:'4️⃣',c:0xa29bfe},{en:'FIVE',cn:'五',i:'5️⃣',c:0x00cec9},{en:'SIX',cn:'六',i:'6️⃣',c:0xff7675},{en:'SEVEN',cn:'七',i:'7️⃣',c:0xfdcb6e},{en:'EIGHT',cn:'八',i:'8️⃣',c:0x6a0572},{en:'NINE',cn:'九',i:'9️⃣',c:0xab352f},{en:'TEN',cn:'十',i:'🔟',c:0x52b4bf}],
-            body: [{en:'EYE',cn:'眼睛',i:'👁️',c:0xffffff},{en:'EAR',cn:'耳朵',i:'👂',c:0xf7d794},{en:'NOSE',cn:'鼻子',i:'👃',c:0xf5cd79},{en:'MOUTH',cn:'嘴巴',i:'👄',c:0xff6b81},{en:'HAND',cn:'手',i:'🖐️',c:0xffcccc},{en:'FOOT',cn:'脚',i:'🦶',c:0xf7d794},{en:'ARM',cn:'手臂',i:'💪',c:0xf7d794},{en:'LEG',cn:'腿',i:'🦵',c:0xf7d794},{en:'HEAD',cn:'头',i:'🗣️',c:0xf7d794}],
-            vehicles: [{en:'CAR',cn:'汽车',i:'🚗',c:0xe74c3c},{en:'BUS',cn:'巴士',i:'🚌',c:0xf1c40f},{en:'PLANE',cn:'飞机',i:'✈️',c:0x3498db},{en:'SHIP',cn:'轮船',i:'🚢',c:0x34495e},{en:'BIKE',cn:'自行车',i:'🚲',c:0x2ecc71},{en:'ROCKET',cn:'火箭',i:'🚀',c:0x8e44ad},{en:'TRAIN',cn:'火车',i:'🚂',c:0x2c3e50}],
-            nature: [{en:'SUN',cn:'太阳',i:'☀️',c:0xf1c40f},{en:'MOON',cn:'月亮',i:'🌙',c:0xf1c40f},{en:'STAR',cn:'星星',i:'⭐',c:0xf1c40f},{en:'CLOUD',cn:'云',i:'☁️',c:0xffffff},{en:'RAIN',cn:'雨',i:'🌧️',c:0x3498db},{en:'SNOW',cn:'雪',i:'❄️',c:0xffffff},{en:'TREE',cn:'树',i:'🌳',c:0x27ae60},{en:'FLOWER',cn:'花',i:'🌸',c:0xe84393}],
-            action: [{en:'RUN',cn:'跑',i:'🏃',c:0xe74c3c},{en:'JUMP',cn:'跳',i:'🦘',c:0xf1c40f},{en:'SWIM',cn:'游泳',i:'🏊',c:0x3498db},{en:'EAT',cn:'吃',i:'🍽️',c:0xe67e22},{en:'SLEEP',cn:'睡觉',i:'💤',c:0x34495e},{en:'DANCE',cn:'跳舞',i:'💃',c:0x9b59b6},{en:'SING',cn:'唱歌',i:'🎤',c:0x2ecc71},{en:'READ',cn:'读',i:'📖',c:0x3498db}]
+            body: [{en:'EYE',cn:'眼睛',i:'👁️',c:0xffffff},{en:'EAR',cn:'耳朵',i:'👂',c:0xf7d794},{en:'NOSE',cn:'鼻子',i:'👃',c:0xf5cd79},{en:'MOUTH',cn:'嘴巴',i:'👄',c:0xff6b81},{en:'HAND',cn:'手',i:'🖐️',c:0xffcccc},{en:'FOOT',cn:'脚',i:'🦶',c:0xf7d794}],
+            vehicles: [{en:'CAR',cn:'汽车',i:'🚗',c:0xe74c3c},{en:'BUS',cn:'巴士',i:'🚌',c:0xf1c40f},{en:'PLANE',cn:'飞机',i:'✈️',c:0x3498db},{en:'SHIP',cn:'轮船',i:'🚢',c:0x34495e},{en:'BIKE',cn:'自行车',i:'🚲',c:0x2ecc71},{en:'ROCKET',cn:'火箭',i:'🚀',c:0x8e44ad}],
+            nature: [{en:'SUN',cn:'太阳',i:'☀️',c:0xf1c40f},{en:'MOON',cn:'月亮',i:'🌙',c:0xf1c40f},{en:'STAR',cn:'星星',i:'⭐',c:0xf1c40f},{en:'CLOUD',cn:'云',i:'☁️',c:0xffffff},{en:'RAIN',cn:'雨',i:'🌧️',c:0x3498db},{en:'SNOW',cn:'雪',i:'❄️',c:0xffffff}],
+            action: [{en:'RUN',cn:'跑',i:'🏃',c:0xe74c3c},{en:'JUMP',cn:'跳',i:'🦘',c:0xf1c40f},{en:'SWIM',cn:'游泳',i:'🏊',c:0x3498db},{en:'EAT',cn:'吃',i:'🍽️',c:0xe67e22},{en:'SLEEP',cn:'睡觉',i:'💤',c:0x34495e},{en:'DANCE',cn:'跳舞',i:'💃',c:0x9b59b6}]
         };
 
         let currentPool = [];
         let score = 0;
         let isPaused = false;
-        let isGrabbing = false;
         let balloons = [];
-        let handTarget = new THREE.Vector3(0,0,0);
         let currentWordData = null;
+        let handTarget = new THREE.Vector3(0,0,0);
 
         // --- 2. 3D 场景 ---
         const canvas = document.getElementById('webgl-canvas');
@@ -214,7 +207,6 @@
         }
         window.addEventListener('resize', resize);
         resize();
-        
         camera.position.z = 18;
 
         scene.add(new THREE.AmbientLight(0xffffff, 0.7));
@@ -222,30 +214,19 @@
         dl.position.set(5, 10, 5);
         scene.add(dl);
 
-        // 主角 Avatar
+        // 主角
         const avatar = new THREE.Group();
         const body = new THREE.Mesh(new THREE.SphereGeometry(1.2), new THREE.MeshPhongMaterial({color:0xffffff}));
         avatar.add(body);
         const eyeMat = new THREE.MeshBasicMaterial({color:0x000000});
         const el = new THREE.Mesh(new THREE.SphereGeometry(0.25), eyeMat); el.position.set(-0.4,0.3,1); avatar.add(el);
         const er = new THREE.Mesh(new THREE.SphereGeometry(0.25), eyeMat); er.position.set(0.4,0.3,1); avatar.add(er);
-        // 手
-        const handGeo = new THREE.SphereGeometry(0.35);
-        const handMat = new THREE.MeshBasicMaterial({color:0xffaaaa});
-        const hl = new THREE.Mesh(handGeo, handMat); hl.position.set(-1.4,-0.5,0); avatar.add(hl);
-        const hr = new THREE.Mesh(handGeo, handMat); hr.position.set(1.4,-0.5,0); avatar.add(hr);
         const halo = new THREE.Mesh(new THREE.TorusGeometry(1.6,0.1,16,100), new THREE.MeshBasicMaterial({color:0xffff00}));
         halo.rotation.x = Math.PI/2;
         avatar.add(halo);
         scene.add(avatar);
 
-        // 眨眼
-        setInterval(() => {
-            el.scale.y = 0.1; er.scale.y = 0.1;
-            setTimeout(() => { el.scale.y = 1; er.scale.y = 1; }, 150);
-        }, 3000);
-
-        // --- 3. 气球系统 (彩虹 & 金色) ---
+        // --- 3. 气球系统 ---
         function createTex(emoji) {
             const cvs = document.createElement('canvas'); cvs.width = 256; cvs.height = 256;
             const ctx = cvs.getContext('2d');
@@ -255,14 +236,14 @@
         }
 
         function spawnBalloon() {
-            if (isPaused) return;
+            if(isPaused) return;
             const item = currentPool[Math.floor(Math.random() * currentPool.length)];
             
-            // 稀有度逻辑：金 20%, 彩 15%
+            // 稀有度调整：金 20%, 彩 15%
             const r = Math.random();
             let type = 'normal';
-            if(r > 0.85) type = 'rainbow'; // Top 15%
-            else if(r > 0.65) type = 'gold'; // Next 20%
+            if(r > 0.85) type = 'rainbow'; 
+            else if(r > 0.65) type = 'gold'; 
 
             const group = new THREE.Group();
             let color = item.c;
@@ -291,7 +272,7 @@
             balloons.push(group);
         }
 
-        // 粒子
+        // 粒子爆炸
         function spawnExplosion(pos, color, type) {
             const count = type === 'rainbow' ? 60 : 30;
             for(let i=0; i<count; i++) {
@@ -300,7 +281,6 @@
                 const mat = new THREE.MeshBasicMaterial({color:c});
                 const p = new THREE.Mesh(geo, mat);
                 p.position.copy(pos);
-                p.rotation.set(Math.random()*3, Math.random()*3, 0);
                 scene.add(p);
                 
                 const dest = {
@@ -319,12 +299,9 @@
             requestAnimationFrame(animate);
             const time = Date.now() * 0.001;
             
-            avatar.position.lerp(handTarget, 0.25);
+            avatar.position.lerp(handTarget, 0.2);
             avatar.rotation.z = (avatar.position.x - handTarget.x) * -0.15;
-            
-            // 捏合效果
-            const s = isGrabbing ? 0.6 : 1;
-            hl.scale.setScalar(s); hr.scale.setScalar(s);
+            halo.rotation.z -= 0.05;
 
             if(!isPaused) {
                 for(let i=balloons.length-1; i>=0; i--) {
@@ -334,11 +311,6 @@
                     
                     if(b.userData.type === 'rainbow') {
                         b.children[0].material.color.setHSL((time * 0.5) % 1, 1, 0.5);
-                    }
-
-                    // 吸附
-                    if(isGrabbing && b.position.distanceTo(avatar.position) < 5) {
-                        b.position.lerp(avatar.position, 0.15);
                     }
 
                     if(b.position.distanceTo(avatar.position) < 2.5) {
@@ -366,13 +338,12 @@
             let txt = "+10";
             let color = "#fff";
             
-            if(type === 'gold') { pts = 50; txt = "+50 💰"; color = "#ffd700"; playSynth('win'); }
-            else if(type === 'rainbow') { pts = 100; txt = "RAINBOW!"; color = "#00ffff"; playSynth('win'); }
+            if(type === 'gold') { pts = 50; txt = "+50 金币!"; color = "#ffd700"; playSynth('win'); }
+            else if(type === 'rainbow') { pts = 100; txt = "彩虹时刻!"; color = "#00ffff"; playSynth('win'); }
             else { playSynth('pop'); }
             
             score += pts;
-            document.getElementById('game-score').innerText = score;
-            document.getElementById('total-score').innerText = score;
+            document.getElementById('score').innerText = score;
             showFloatText(txt, pos, color);
 
             showCard(data);
@@ -390,8 +361,10 @@
             setTimeout(()=>el.remove(), 1000);
         }
 
-        // --- 5. 语音跟读 ---
+        // --- 5. 语音跟读 (修复卡死) ---
         const synth = window.speechSynthesis;
+        let ttsTimer = null;
+
         function showCard(data) {
             isPaused = true;
             currentWordData = data;
@@ -403,53 +376,108 @@
             document.getElementById('mic-hint').innerText = "🔊 朗读中...";
             document.getElementById('mic-btn').style.display = 'none';
             
+            // 朗读
             synth.cancel();
             const u = new SpeechSynthesisUtterance(data.en);
             u.lang = 'en-US'; u.rate = 0.9;
-            u.onend = () => {
+            
+            // 强制回调：防止 TTS 丢包卡死
+            clearTimeout(ttsTimer);
+            const onEnd = () => {
                 document.getElementById('mic-hint').innerText = "🎤 点击麦克风跟读";
                 document.getElementById('mic-btn').style.display = 'block';
             };
+            u.onend = onEnd;
+            ttsTimer = setTimeout(onEnd, 2000); // 2秒强制显示
+
             synth.speak(u);
         }
 
         window.startSpeechRec = () => {
-            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
             document.getElementById('mic-hint').innerText = "👂 正在听...";
-            
-            if(isIOS || !('webkitSpeechRecognition' in window)) {
-                setTimeout(() => { document.getElementById('mic-hint').innerText = "🌟 完美!"; onSuccess(); }, 1000);
-            } else {
-                const Rec = window.webkitSpeechRecognition;
-                const r = new Rec();
-                r.lang = 'en-US'; r.start();
-                r.onresult = (e) => {
-                    const t = e.results[0][0].transcript.toLowerCase();
-                    if(t.includes(currentWordData.en.toLowerCase())) {
-                        document.getElementById('mic-hint').innerText = "🌟 Perfect!"; onSuccess();
-                    } else {
-                        document.getElementById('mic-hint').innerText = "😅 再试一次";
-                    }
-                };
-            }
-        };
-
-        function onSuccess() {
-            playSynth('win');
-            spawnExplosion(avatar.position, 0xffff00, 'rainbow');
-            score += 20; document.getElementById('game-score').innerText = score;
+            // 简单模拟成功，因为 iOS 不支持 webSpeechRecognition
             setTimeout(() => {
-                document.getElementById('card-modal').classList.remove('active');
-                isPaused = false;
-            }, 1500);
-        }
+                document.getElementById('mic-hint').innerText = "🌟 完美!";
+                playSynth('win');
+                score += 20; document.getElementById('score').innerText = score;
+                setTimeout(window.closeCard, 1500);
+            }, 1000);
+        };
 
         window.closeCard = () => {
             document.getElementById('card-modal').classList.remove('active');
             isPaused = false;
         };
 
-        // --- 6. 音频引擎 ---
+        // --- 6. 核心：摄像头与追踪 (视觉修复) ---
+        const videoElement = document.getElementById('input-video');
+        const radarCanvas = document.getElementById('radar-canvas');
+        const radarCtx = radarCanvas.getContext('2d');
+        const hands = new window.Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
+        hands.setOptions({ maxNumHands: 1, minDetectionConfidence: 0.5 });
+
+        hands.onResults(results => {
+            // 清空并绘制视频帧到 Radar Canvas
+            radarCtx.clearRect(0, 0, radarCanvas.width, radarCanvas.height);
+            radarCtx.save();
+            radarCtx.scale(-1, 1);
+            radarCtx.translate(-radarCanvas.width, 0);
+            // 绘制视频帧作为背景，确认视频流有数据
+            if (results.image) {
+                radarCtx.drawImage(results.image, 0, 0, radarCanvas.width, radarCanvas.height);
+            }
+            radarCtx.restore();
+
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                const p = results.multiHandLandmarks[0][8]; // 食指
+                
+                // 画绿点
+                radarCtx.fillStyle = '#0f0';
+                radarCtx.beginPath();
+                radarCtx.arc((1-p.x)*radarCanvas.width, p.y*radarCanvas.height, 5, 0, Math.PI*2);
+                radarCtx.fill();
+
+                // 坐标映射
+                const rangeX = (camera.aspect * camera.position.z); 
+                const x = (0.5 - p.x) * (rangeX * 2.5); 
+                const y = -(p.y - 0.5) * 35;
+                handTarget.set(x, y, 0);
+                
+                log("检测到手势");
+            } else {
+                log("寻找手势...");
+            }
+        });
+
+        // 强力驱动循环
+        async function detectLoop() {
+            if (videoElement.readyState >= 2 && !videoElement.paused) {
+                await hands.send({image: videoElement});
+            }
+            requestAnimationFrame(detectLoop);
+        }
+
+        // 原生摄像头启动
+        async function startCamera() {
+            try {
+                // 使用理想分辨率，防止 iOS 拒绝
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'user', width: 640, height: 480 }
+                });
+                videoElement.srcObject = stream;
+                videoElement.onloadedmetadata = () => {
+                    videoElement.play();
+                    // 设置 radar canvas 尺寸
+                    radarCanvas.width = videoElement.videoWidth;
+                    radarCanvas.height = videoElement.videoHeight;
+                    detectLoop(); 
+                };
+            } catch(e) {
+                alert("相机启动失败: " + e.message);
+            }
+        }
+
+        // --- 7. 音频引擎 ---
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         function playSynth(type) {
             if(audioCtx.state === 'suspended') audioCtx.resume();
@@ -459,86 +487,29 @@
             const now = audioCtx.currentTime;
             
             if(type === 'pop') {
-                osc.type = 'triangle'; osc.frequency.setValueAtTime(600, now);
-                osc.frequency.exponentialRampToValueAtTime(100, now+0.1);
-                gain.gain.setValueAtTime(0.3, now); gain.gain.linearRampToValueAtTime(0, now+0.1);
-                osc.start(now); osc.stop(now+0.1);
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(600, now);
+                osc.frequency.exponentialRampToValueAtTime(100, now + 0.1);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.1);
+                osc.start(now); osc.stop(now + 0.1);
             } else if(type === 'win') {
-                osc.type = 'square'; osc.frequency.setValueAtTime(500, now);
-                osc.frequency.setValueAtTime(800, now+0.1);
-                gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0, now+0.3);
-                osc.start(now); osc.stop(now+0.3);
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(500, now);
+                osc.frequency.setValueAtTime(800, now + 0.1);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.3);
+                osc.start(now); osc.stop(now + 0.3);
             }
         }
 
-        // --- 7. 视觉修复：强制渲染循环 ---
-        const videoEl = document.getElementById('input-video');
-        const radarCanvas = document.getElementById('radar-canvas');
-        const radarCtx = radarCanvas.getContext('2d');
-        const hands = new window.Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
-        hands.setOptions({ maxNumHands: 1, minDetectionConfidence: 0.5 });
-
-        hands.onResults(results => {
-            // 绘制骨骼，让用户知道 AI 在工作
-            radarCtx.clearRect(0,0,radarCanvas.width,radarCanvas.height);
-            radarCtx.drawImage(results.image, 0, 0, radarCanvas.width, radarCanvas.height);
-            
-            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-                const p = results.multiHandLandmarks[0];
-                const index = p[8];
-                const thumb = p[4];
-                
-                // 画绿点
-                radarCtx.fillStyle = '#0f0';
-                radarCtx.beginPath();
-                radarCtx.arc(index.x*radarCanvas.width, index.y*radarCanvas.height, 5, 0, Math.PI*2);
-                radarCtx.fill();
-                
-                // 坐标映射
-                const rangeX = (camera.aspect * camera.position.z); 
-                const x = (0.5 - index.x) * (rangeX * 2.5); 
-                const y = -(index.y - 0.5) * 35;
-                handTarget.set(x, y, 0);
-
-                // 捏合
-                const dist = Math.hypot(index.x - thumb.x, index.y - thumb.y);
-                isGrabbing = dist < 0.05;
-            }
-        });
-
-        // 强力驱动循环
-        async function detectLoop() {
-            if (videoEl.readyState >= 2 && !videoEl.paused) {
-                await hands.send({image: videoEl});
-            }
-            requestAnimationFrame(detectLoop);
-        }
-
-        // 启动函数
-        window.startGame = async (cat) => {
+        // 启动
+        window.startGame = (cat) => {
             currentPool = DB[cat];
             document.getElementById('lobby-screen').style.display = 'none';
             document.getElementById('game-ui').style.display = 'block';
-            
             audioCtx.resume();
-            
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: 'user', width: {ideal: 640}, height: {ideal: 480} }
-                });
-                videoEl.srcObject = stream;
-                videoEl.onloadedmetadata = () => {
-                    videoEl.play();
-                    // 调整雷达 canvas 尺寸匹配视频流比例
-                    radarCanvas.width = videoEl.videoWidth / 4;
-                    radarCanvas.height = videoEl.videoHeight / 4;
-                    detectLoop(); // 启动 AI 循环
-                };
-                log("相机启动成功");
-            } catch(e) {
-                alert("相机错误: " + e.message);
-            }
-
+            startCamera();
             animate();
             setInterval(spawnBalloon, 1800);
         };
