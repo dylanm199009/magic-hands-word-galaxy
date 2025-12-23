@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Magic Hands: V15 iOS Fixed</title>
+    <title>Magic Garden V16</title>
     
-    <!-- 依赖库 -->
+    <!-- 核心依赖 (CDN) -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
@@ -13,49 +13,72 @@
     <link rel="stylesheet" href="./style.css">
 </head>
 <body>
-    <!-- 1. 启动大厅 -->
-    <div id="lobby">
-        <div class="header">
-            <h1>🦄 魔法单词 V15</h1>
-            <p>iOS 专用优化版 | 海量词库</p>
-        </div>
-        
-        <div class="category-grid">
-            <button onclick="window.startGame('animals')" style="--c:#ff7675">🦁 动物</button>
-            <button onclick="window.startGame('food')" style="--c:#fdcb6e">🍔 美食</button>
-            <button onclick="window.startGame('daily')" style="--c:#a29bfe">🏠 日常</button>
-            <button onclick="window.startGame('nature')" style="--c:#00b894">🌳 自然</button>
-            <button onclick="window.startGame('numbers')" style="--c:#74b9ff">🔢 数字</button>
+    <!-- 背景层 -->
+    <div id="sky-gradient"></div>
+
+    <!-- 1. 启动大厅 (包含成长树) -->
+    <div id="lobby-screen">
+        <div class="logo-area">
+            <h1>🌸 奇幻花园</h1>
+            <p>Magic Garden English</p>
         </div>
 
-        <div id="status-log">等待选择关卡...</div>
+        <!-- 魔法成长树 -->
+        <div class="tree-container">
+            <div id="magic-tree">🌱</div>
+            <div class="tree-stats">等级: <span id="user-lvl">1</span> | 总分: <span id="total-score">0</span></div>
+        </div>
+
+        <!-- 关卡滑块 -->
+        <div class="level-scroller">
+            <button onclick="startGame('animals')" style="--theme:#ff7675">🦁<br>动物</button>
+            <button onclick="startGame('fruits')" style="--theme:#fdcb6e">🍎<br>水果</button>
+            <button onclick="startGame('colors')" style="--theme:#a29bfe">🎨<br>颜色</button>
+            <button onclick="startGame('numbers')" style="--theme:#74b9ff">🔢<br>数字</button>
+            <button onclick="startGame('body')" style="--theme:#55efc4">👀<br>身体</button>
+            <button onclick="startGame('vehicles')" style="--theme:#636e72">🚗<br>交通</button>
+            <button onclick="startGame('nature')" style="--theme:#00b894">🌳<br>自然</button>
+            <button onclick="startGame('action')" style="--theme:#e17055">🏃<br>动作</button>
+        </div>
+
+        <div id="system-log">⏳ 等待相机授权...</div>
     </div>
 
     <!-- 2. 游戏 HUD -->
     <div id="game-ui">
-        <div class="top-info">
-            <div class="score-pill">🏆 <span id="score">0</span></div>
-            <button class="quit-btn" onclick="location.reload()">退出</button>
+        <div class="hud-header">
+            <div class="score-badge">✨ <span id="game-score">0</span></div>
+            <div class="combo-badge" id="combo-display" style="opacity:0">Combo x2!</div>
+            <button class="quit-btn" onclick="location.reload()">🏠 回家</button>
         </div>
-        
-        <!-- 学习卡片 -->
-        <div id="card-modal">
-            <div class="card-inner">
-                <div id="c-icon">🍎</div>
-                <h2 id="c-word">APPLE</h2>
-                <h3 id="c-cn">苹果</h3>
+
+        <!-- 学习卡片 (跟读模式) -->
+        <div id="study-modal">
+            <div class="modal-card">
+                <div id="card-icon">🍎</div>
+                <h2 id="card-en">APPLE</h2>
+                <div id="card-pron">/ˈæp.l/</div>
+                <h3 id="card-cn">苹果</h3>
+                
+                <div class="mic-area">
+                    <div id="mic-status">🎤 点击麦克风跟读</div>
+                    <button id="btn-mic" onclick="startSpeech()">🎙️</button>
+                    <button id="btn-skip" onclick="closeCard()">跳过</button>
+                </div>
             </div>
         </div>
+
+        <!-- 浮动特效容器 -->
+        <div id="vfx-container"></div>
     </div>
 
-    <!-- 3. iOS 核心修复：视频必须可见，playsinline 必须有 -->
-    <!-- 我们把它设为 absolute 并移出屏幕，而不是 display:none -->
-    <video id="ios-video" playsinline webkit-playsinline muted autoplay></video>
+    <!-- 3. iOS 核心修复：视频流必须存在 -->
+    <video id="input-video" playsinline webkit-playsinline muted autoplay></video>
     
-    <!-- 调试雷达：显示是否识别到手 -->
-    <canvas id="radar" width="100" height="100"></canvas>
+    <!-- 4. 调试雷达 (确认手势) -->
+    <canvas id="radar-canvas" width="120" height="90"></canvas>
 
-    <!-- 4. 主画布 -->
+    <!-- 5. 主 3D 画布 -->
     <canvas id="webgl-canvas"></canvas>
 
     <script type="module" src="./main.js"></script>
