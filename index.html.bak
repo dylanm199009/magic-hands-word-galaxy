@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Magic Hands: V13 Stable</title>
+    <title>Magic Hands: V14 Stable</title>
     
-    <!-- 依赖库 -->
+    <!-- 核心库 -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" crossorigin="anonymous"></script>
@@ -14,54 +14,47 @@
     <link rel="stylesheet" href="./style.css">
 </head>
 <body>
-    <div id="star-bg"></div>
+    <!-- 调试信息 -->
+    <div id="debug-info"></div>
 
     <!-- 1. 启动大厅 -->
-    <div id="lobby">
-        <div class="logo-area">
-            <h1>🚀 魔法派对 V13</h1>
-            <p>修复版：手势灵敏 + 自动发音</p>
+    <div id="home-screen">
+        <div class="home-title">✨ 魔法派对 V14</div>
+        <p class="home-subtitle">灵敏手感 + 自动发音 + 视觉升级</p>
+        
+        <div class="level-selection">
+            <button class="lvl-button" onclick="startGame('animals')" style="--btn-color:#ff7675">🦁 动物</button>
+            <button class="lvl-btn" onclick="startGame('food')" style="--btn-color:#fdcb6e">🍔 美食</button>
+            <button class="lvl-btn" onclick="startGame('magic')" style="--btn-color:#a29bfe">🔮 魔法</button>
         </div>
         
-        <div class="level-box">
-            <p>请选择关卡：</p>
-            <div class="btn-row">
-                <button class="lvl-btn" onclick="startGame('animals')" style="--c:#ff7675">🦁 动物</button>
-                <button class="lvl-btn" onclick="startGame('food')" style="--c:#fdcb6e">🍔 美食</button>
-                <button class="lvl-btn" onclick="startGame('magic')" style="--c:#a29bfe">🔮 魔法</button>
-            </div>
-        </div>
-        
-        <div id="status-log">⏳ 正在初始化摄像头... (请允许权限)</div>
+        <div class="status-message">⏳ 摄像头初始化中...</div>
     </div>
 
     <!-- 2. 游戏 HUD -->
-    <div id="game-ui">
-        <div class="top-bar">
-            <div class="score-pill">⭐ <span id="score">0</span></div>
-            <button class="exit-btn" onclick="location.reload()">退出</button>
+    <div id="game-hud">
+        <div class="hud-top">
+            <div class="score-display">🌟 <span id="score">0</span></div>
+            <button class="exit-button" onclick="location.reload()">退出</button>
         </div>
 
-        <!-- 卡片展示区 -->
-        <div id="card-overlay">
-            <div class="card-box">
-                <div id="c-icon">🍎</div>
-                <h2 id="c-word">APPLE</h2>
-                <h3 id="c-cn">苹果</h3>
+        <!-- 学习卡片 -->
+        <div id="learning-card">
+            <div class="card-content">
+                <div id="card-icon">🍎</div>
+                <h2 id="card-en">APPLE</h2>
+                <h3 id="card-cn">苹果</h3>
             </div>
         </div>
-
-        <!-- 调试信息：让你知道发音是否工作 -->
-        <div id="debug-toast">系统就绪</div>
     </div>
 
-    <!-- 3. 关键修复：Video 不能 display:none，必须占位但透明 -->
-    <video id="input-video" class="input_video" playsinline muted autoplay></video>
+    <!-- 3. 摄像头输入 (重要：必须存在且可见，但可以透明) -->
+    <video id="input-video" class="input-video" playsinline muted autoplay></video>
     
-    <!-- 手势雷达 (调试用) -->
+    <!-- 调试用：显示手部追踪点 -->
     <canvas id="debug-canvas" width="160" height="120"></canvas>
 
-    <!-- 主画布 -->
+    <!-- 4. 主渲染画布 -->
     <canvas id="output-canvas"></canvas>
 
     <script type="module" src="./main.js"></script>
