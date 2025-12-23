@@ -1,127 +1,130 @@
 import * as THREE from 'three';
 
-// --- 数据配置 ---
-const WORD_DB = [
-    { en: 'APPLE', cn: '苹果', pron: '/??p.?l/', color: 0xff4d4d },
-    { en: 'BANANA', cn: '香蕉', pron: '/b??n?n.?/', color: 0xffeb3b },
-    { en: 'CAR', cn: '汽车', pron: '/kɑ?r/', color: 0x2196f3 },
-    { en: 'BIRD', cn: '小鸟', pron: '/b??rd/', color: 0x4caf50 },
-    { en: 'STAR', cn: '星星', pron: '/stɑ?r/', color: 0xff9800 }
+// 1. 词库系统
+const WORDS = [
+    { en: 'APPLE', cn: '苹果', pron: '/??p.?l/', color: 0xff3e3e },
+    { en: 'ORANGE', cn: '橙子', pron: '/???r.?nd?/', color: 0xff9100 },
+    { en: 'ROCKET', cn: '火箭', pron: '/?rɑ?.k?t/', color: 0x00e5ff },
+    { en: 'CHERRY', cn: '樱桃', pron: '/?t?er.i/', color: 0xff2b75 }
 ];
 
-// --- 3D 引擎初始化 ---
+let currentIndex = 0;
+let score = 0;
+
+// 2. 场景初始化
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-const renderer = new THREE.WebGLRenderer({ 
-    canvas: document.querySelector('#game-canvas'), 
-    antialias: true, alpha: true 
-});
+const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('game-canvas'), antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.toneMapping = THREE.ReinhardToneMapping;
+renderer.setPixelRatio(window.devicePixelRatio);
 
-// 动态星空背景
-const createSpace = () => {
-    const geo = new THREE.BufferGeometry();
-    const pos = [];
-    for(let i=0; i<2000; i++) pos.push((Math.random()-0.5)*100, (Math.random()-0.5)*100, (Math.random()-0.5)*100);
-    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-    return new THREE.Points(geo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.1, transparent: true, opacity: 0.8 }));
-};
-scene.add(createSpace());
+// 背景：流动星云
+const starGeo = new THREE.BufferGeometry();
+const starPos = [];
+for(let i=0; i<3000; i++) starPos.push((Math.random()-0.5)*100, (Math.random()-0.5)*100, (Math.random()-0.5)*100);
+starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3));
+const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0x888888, size: 0.1 }));
+scene.add(stars);
 
-// 灯光：皮克斯光感关键
-const ambient = new THREE.AmbientLight(0xffffff, 0.5);
-scene.add(ambient);
-const spotLight = new THREE.SpotLight(0xffffff, 2);
-spotLight.position.set(10, 10, 10);
-scene.add(spotLight);
-
-// 核心互动模型
+// 核心 3D 物体：皮克斯质感球体
 const targetGroup = new THREE.Group();
 const mesh = new THREE.Mesh(
-    new THREE.IcosahedronGeometry(2, 2),
-    new THREE.MeshStandardMaterial({ 
-        roughness: 0.1, metalness: 0.5, 
-        emissive: 0x222222 
+    new THREE.SphereGeometry(2, 64, 64),
+    new THREE.MeshPhysicalMaterial({ 
+        color: 0xff3e3e, roughness: 0.2, transmission: 0.5, thickness: 1, metalness: 0.1 
     })
 );
 targetGroup.add(mesh);
 scene.add(targetGroup);
+
+const light = new THREE.PointLight(0xffffff, 2);
+light.position.set(5, 5, 5);
+scene.add(light);
+scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+
 camera.position.z = 10;
 
-// --- 交互系统 ---
-let currentIdx = 0;
-let score = 0;
-const feedbackUI = document.getElementById('feedback-text');
-
-function updateWord() {
-    const data = WORD_DB[currentIdx];
-    document.getElementById('word-en').innerText = data.en;
-    document.getElementById('word-cn').innerText = data.cn;
-    document.getElementById('pronunciation').innerText = data.pron;
-    mesh.material.color.setHex(data.color);
+// 3. 核心功能：刷新单词与发音
+function refreshGame() {
+    const word = WORDS[currentIndex];
+    document.getElementById('word-en').innerText = word.en;
+    document.getElementById('word-cn').innerText = word.cn;
+    document.getElementById('pron').innerText = word.pron;
     
-    // 语音朗读
-    const utter = new SpeechSynthesisUtterance(data.en);
+    // 物理平滑变色
+    gsap.to(mesh.material.color, { r: new THREE.Color(word.color).r, g: new THREE.Color(word.color).g, b: new THREE.Color(word.color).b, duration: 0.5 });
+    
+    // 发音
+    const utter = new SpeechSynthesisUtterance(word.en);
     utter.lang = 'en-US';
-    utter.rate = 0.8;
     window.speechSynthesis.speak(utter);
 }
 
-function onHit() {
-    // 视觉反馈：爆炸与缩放
-    targetGroup.scale.set(1.5, 0.5, 1.5); // Squash
-    setTimeout(() => targetGroup.scale.set(1, 1, 1), 200);
-    
-    // 文字反馈
-    feedbackUI.style.transform = 'translate(-50%, -50%) scale(1)';
-    feedbackUI.style.opacity = '1';
-    setTimeout(() => {
-        feedbackUI.style.transform = 'translate(-50%, -50%) scale(0)';
-        feedbackUI.style.opacity = '0';
-    }, 500);
+// 4. 丝滑碰撞特效
+function triggerExplosion() {
+    // GSAP Q弹动画
+    gsap.fromTo(targetGroup.scale, 
+        { x: 0.5, y: 1.5, z: 0.5 }, 
+        { x: 1, y: 1, z: 1, duration: 0.8, ease: "elastic.out(1, 0.3)" }
+    );
 
     score += 10;
     document.getElementById('score').innerText = score;
-    
-    currentIdx = (currentIdx + 1) % WORD_DB.length;
-    targetGroup.position.x = (Math.random()-0.5) * 12;
-    targetGroup.position.y = (Math.random()-0.5) * 6;
-    updateWord();
+
+    // 随机移动
+    gsap.to(targetGroup.position, {
+        x: (Math.random() - 0.5) * 10,
+        y: (Math.random() - 0.5) * 6,
+        duration: 0.5,
+        ease: "power2.out"
+    });
+
+    currentIndex = (currentIndex + 1) % WORDS.length;
+    refreshGame();
 }
 
-// --- 手势识别逻辑 ---
+// 5. 手势捕捉（平滑算法）
+const videoElement = document.getElementById('webcam');
 const hands = new window.Hands({
     locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
 });
-hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.7 });
 
 hands.onResults((results) => {
-    document.getElementById('loading-overlay').style.opacity = '0';
-    setTimeout(() => document.getElementById('loading-overlay').style.display = 'none', 500);
+    document.getElementById('loader').style.opacity = 0;
+    setTimeout(() => document.getElementById('loader').style.display = 'none', 1000);
 
     if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-        const finger = results.multiHandLandmarks[0][8]; // 食指尖
-        const x = (finger.x - 0.5) * 20;
-        const y = -(finger.y - 0.5) * 12;
-        
-        const dist = Math.sqrt(Math.pow(x - targetGroup.position.x, 2) + Math.pow(y - targetGroup.position.y, 2));
+        const finger = results.multiHandLandmarks[0][8]; // 食指
+        const targetX = (finger.x - 0.5) * 22;
+        const targetY = -(finger.y - 0.5) * 14;
+
+        // 碰撞检测
+        const dist = Math.sqrt(Math.pow(targetX - targetGroup.position.x, 2) + Math.pow(targetY - targetGroup.position.y, 2));
         if (dist < 2.5) {
-            onHit();
+            triggerExplosion();
         }
     }
 });
 
-const cameraSetup = new window.Camera(document.getElementById('webcam'), {
-    onFrame: async () => { await hands.send({image: document.getElementById('webcam')}); },
+const cameraSetup = new window.Camera(videoElement, {
+    onFrame: async () => { await hands.send({image: videoElement}); },
     width: 640, height: 480
 });
 cameraSetup.start();
-updateWord();
 
+// 渲染循环
 function animate() {
     requestAnimationFrame(animate);
-    mesh.rotation.y += 0.02;
+    mesh.rotation.y += 0.01;
+    stars.rotation.y += 0.0002;
     renderer.render(scene, camera);
 }
 animate();
+refreshGame();
+
+// 响应式
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
