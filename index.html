@@ -3,72 +3,113 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Magic Hands: Crystal Pop V9</title>
+    <title>Magic Hands: Rainbow Party V10</title>
     
-    <!-- 1. 样式 -->
-    <link rel="stylesheet" href="./style.css">
-
-    <!-- 2. 核心库 (CDN 必须按顺序) -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
 
     <style>
-        /* 调试面板：如果报错，屏幕顶部会显示红字 */
-        #debug-log {
-            position: fixed; top: 0; left: 0; width: 100%; 
-            background: rgba(255,0,0,0.8); color: white; 
-            z-index: 9999; display: none; padding: 5px; font-size: 12px;
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&display=swap');
+
+        body, html { margin: 0; overflow: hidden; font-family: 'Fredoka', sans-serif; background: #333; }
+
+        /* 1. 梦幻彩虹背景 (绝对不会黑屏) */
+        #sky-bg {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(180deg, #84fab0 0%, #8fd3f4 100%);
+            z-index: -2;
         }
+        /* 云朵装饰 */
+        .cloud {
+            position: absolute; background: rgba(255,255,255,0.6); border-radius: 50%;
+            animation: floatCloud 20s linear infinite;
+        }
+
+        /* 2. 启动界面 */
+        #start-screen {
+            position: fixed; inset: 0; z-index: 100;
+            background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        h1 { color: #ff6b6b; font-size: 60px; text-shadow: 3px 3px 0 #fff; margin: 0; }
+        p { color: #555; font-size: 20px; }
+        
+        #btn-start {
+            margin-top: 30px; padding: 15px 50px; font-size: 28px;
+            background: #ff9ff3; border: 4px solid white; border-radius: 50px;
+            color: white; font-weight: bold; cursor: pointer;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            animation: pulse 1s infinite;
+        }
+
+        /* 3. 游戏 UI */
+        #hud { position: absolute; inset: 0; pointer-events: none; z-index: 10; display: none; }
+        .score-box {
+            position: absolute; top: 20px; left: 20px;
+            background: white; padding: 10px 30px; border-radius: 30px;
+            font-size: 32px; color: #ff9ff3; font-weight: 900;
+            border: 4px solid #fff; box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        /* 学习卡片 */
+        #card-modal {
+            position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%) scale(0);
+            width: 300px; padding: 20px; background: white; border-radius: 30px;
+            text-align: center; border: 8px solid #84fab0;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            pointer-events: none; opacity: 0;
+        }
+        #card-modal.show { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+        
+        #c-icon { font-size: 100px; display: block; margin: 10px 0; }
+        #c-word { font-size: 40px; color: #333; font-weight: bold; margin: 0; }
+        #c-cn { font-size: 24px; color: #888; margin: 5px 0 20px 0; }
+
+        /* 4. 摄像头调试窗口 (让你知道手势是否生效) */
+        #cam-preview {
+            position: absolute; bottom: 20px; right: 20px; width: 160px; height: 120px;
+            background: black; border-radius: 10px; border: 4px solid white;
+            z-index: 5; opacity: 0.8; transform: scaleX(-1);
+        }
+
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+        @keyframes floatCloud { from { left: -20%; } to { left: 120%; } }
     </style>
 </head>
 <body>
-    <div id="debug-log"></div>
-
-    <div id="game-app">
-        <!-- 动态背景 -->
-        <div class="gradient-bg"></div>
-
-        <!-- 启动大厅 -->
-        <div id="start-screen">
-            <div class="logo-area">✨ Crystal Pop</div>
-            <p>抓住那些漂浮的水晶泡泡！</p>
-            <p style="font-size:12px; color:#ddd; margin-top:5px;">(请确保设备音量已打开)</p>
-            <button id="btn-start">开始游戏 (Start)</button>
-        </div>
-
-        <!-- 游戏 HUD -->
-        <div id="hud">
-            <div class="score-pill">🌟 <span id="score">0</span></div>
-            
-            <!-- 学习卡片 (弹窗) -->
-            <div id="learning-card">
-                <div class="card-glass">
-                    <div id="card-icon">🍎</div>
-                    <div class="text-group">
-                        <h2 id="card-en">APPLE</h2>
-                        <h3 id="card-cn">苹果</h3> <!-- 这里会动态填入 -->
-                        <div id="card-pron">/ˈæp.əl/</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <video id="webcam" playsinline style="display:none"></video>
-        <canvas id="game-canvas"></canvas>
+    <!-- 背景 -->
+    <div id="sky-bg">
+        <div class="cloud" style="width:100px; height:60px; top:20%; left:-10%; animation-duration: 25s;"></div>
+        <div class="cloud" style="width:150px; height:90px; top:50%; left:-20%; animation-duration: 35s;"></div>
     </div>
 
-    <!-- 3. 主逻辑 -->
-    <script type="module" src="./main.js"></script>
+    <!-- 启动页 -->
+    <div id="start-screen">
+        <h1>🎈 欢乐单词派对</h1>
+        <p>Rainbow Party</p>
+        <button id="btn-start">开始游戏 GO!</button>
+        <p style="font-size:14px; margin-top:20px; opacity:0.6;">⚠️ 请允许摄像头权限</p>
+    </div>
 
-    <!-- 4. 全局错误捕捉 -->
-    <script>
-        window.onerror = function(msg, url, line) {
-            const d = document.getElementById('debug-log');
-            d.style.display = 'block';
-            d.innerHTML += `❌ ${msg} (Line ${line})<br>`;
-        }
-    </script>
+    <!-- 游戏层 -->
+    <div id="hud">
+        <div class="score-box">⭐ <span id="score">0</span></div>
+        <div id="card-modal">
+            <div id="c-icon">🍎</div>
+            <h2 id="c-word">APPLE</h2>
+            <p id="c-cn">苹果</p>
+        </div>
+    </div>
+
+    <!-- 摄像头预览 (重要：让你确认摄像头开了没) -->
+    <video id="cam-preview" playsinline autoplay muted></video>
+    
+    <!-- 3D 画布 -->
+    <canvas id="game-canvas"></canvas>
+
+    <script type="module" src="./main.js"></script>
 </body>
 </html>

@@ -1,274 +1,264 @@
-﻿// --- 0. 检查 THREE 是否存在 ---
-if (typeof THREE === 'undefined') { throw new Error("Three.js load failed."); }
+﻿// --- 0. 环境检查 ---
+if (typeof THREE === 'undefined') { console.error("Three.js missed!"); }
 
-// --- 1. 数据配置 (Unicode 编码防乱码) ---
-const WORDS = [
-    { en: 'APPLE', cn: '\u82f9\u679c', icon: '🍎', pron: '/\u00e6pl/', color: 0xff4d4d },
-    { en: 'BANANA', cn: '\u9999\u8549', icon: '🍌', pron: '/b\u0259\u02c8n\u00e6n\u0259/', color: 0xffd700 },
-    { en: 'GRAPE', cn: '\u8461\u8404', icon: '🍇', pron: '/\u0261re\u026ap/', color: 0xba68c8 },
-    { en: 'ROCKET', cn: '\u706b\u7bad', icon: '🚀', pron: '/\u02c8r\u0251\u02d0k\u026at/', color: 0x4fc3f7 },
-    { en: 'STAR', cn: '\u661f\u661f', icon: '⭐', pron: '/st\u0251\u02d0r/', color: 0xfff176 },
-    { en: 'CAT', cn: '\u732b\u54aa', icon: '🐱', pron: '/k\u00e6t/', color: 0xffb74d }
+// --- 1. 词库 (Emoji + 颜色) ---
+const DATA = [
+    { en: 'APPLE', cn: '苹果', icon: '🍎', color: 0xff6b6b }, // 红
+    { en: 'BANANA', cn: '香蕉', icon: '🍌', color: 0xfeca57 }, // 黄
+    { en: 'GRAPE', cn: '葡萄', icon: '🍇', color: 0xa29bfe }, // 紫
+    { en: 'TREE', cn: '大树', icon: '🌳', color: 0x1dd1a1 }, // 绿
+    { en: 'CAR', cn: '汽车', icon: '🚗', color: 0x54a0ff }, // 蓝
+    { en: 'BEAR', cn: '小熊', icon: '🐻', color: 0xc8d6e5 }  // 白
 ];
 
-// --- 2. 场景与渲染器 ---
+// --- 2. 场景构建 ---
 const canvas = document.getElementById('game-canvas');
 const scene = new THREE.Scene();
+// 注意：不设置 scene.background，让它透视到 CSS 的彩虹背景
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+const renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true, antialias: true }); // alpha: true 很关键
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(window.devicePixelRatio); // 高清渲染
-camera.position.z = 12;
+renderer.setPixelRatio(window.devicePixelRatio);
+camera.position.z = 14;
 
-// 3A 级灯光
-const ambLight = new THREE.AmbientLight(0xffffff, 0.7);
-const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-dirLight.position.set(5, 10, 7);
-scene.add(ambLight);
+// 灯光 (让颜色鲜艳)
+scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+dirLight.position.set(5, 10, 5);
 scene.add(dirLight);
 
-// --- 3. 辅助：Emoji 转 3D 贴图 ---
-function createIconTexture(emoji) {
+// --- 3. 辅助：Emoji 转 Sprite 贴图 ---
+function createIconSprite(emoji) {
     const cvs = document.createElement('canvas');
-    cvs.width = 128; cvs.height = 128;
+    cvs.width = 256; cvs.height = 256;
     const ctx = cvs.getContext('2d');
-    ctx.font = '100px Arial';
+    ctx.font = '200px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(emoji, 64, 70); // 纯 Emoji，无背景
-    return new THREE.CanvasTexture(cvs);
+    ctx.fillText(emoji, 128, 140);
+    const tex = new THREE.CanvasTexture(cvs);
+    const mat = new THREE.SpriteMaterial({ map: tex });
+    const sprite = new THREE.Sprite(mat);
+    sprite.scale.set(1.8, 1.8, 1); // 图标大一点
+    return sprite;
 }
 
-// --- 4. 粒子系统 (爆炸特效) ---
-const particles = [];
-function spawnExplosion(pos, colorHex) {
-    const geo = new THREE.SphereGeometry(0.15, 8, 8);
-    const mat = new THREE.MeshBasicMaterial({ color: colorHex });
-    
-    for (let i = 0; i < 20; i++) {
-        const p = new THREE.Mesh(geo, mat);
-        p.position.copy(pos);
-        // 随机爆炸速度
-        p.userData = {
-            vel: new THREE.Vector3((Math.random()-0.5)*0.5, (Math.random()-0.5)*0.5, (Math.random()-0.5)*0.5),
-            life: 1.0
-        };
-        scene.add(p);
-        particles.push(p);
-    }
-}
-
-// --- 5. 泡泡逻辑 (Crystal Bubbles) ---
-const bubbles = [];
+// --- 4. 气球生成逻辑 ---
+const balloons = [];
 let isPaused = false;
 
-function spawnBubble() {
+function spawnBalloon() {
     if (isPaused) return;
 
-    const data = WORDS[Math.floor(Math.random() * WORDS.length)];
+    const item = DATA[Math.floor(Math.random() * DATA.length)];
     const group = new THREE.Group();
 
-    // 外层：水晶玻璃球 (Physical Material)
-    const glassGeo = new THREE.SphereGeometry(1.5, 32, 32);
-    const glassMat = new THREE.MeshPhysicalMaterial({
-        color: 0xffffff,
-        transmission: 0.9, // 透明传光
-        opacity: 1,
-        metalness: 0,
-        roughness: 0,
-        ior: 1.5,
-        thickness: 0.5,
-        transparent: true
+    // 气球本体：使用高亮 Phong 材质，像糖果
+    const geo = new THREE.SphereGeometry(1.5, 32, 32);
+    const mat = new THREE.MeshPhongMaterial({
+        color: item.color,
+        emissive: item.color,      // 自发光，防止变黑
+        emissiveIntensity: 0.2,
+        transparent: true,
+        opacity: 0.8,              // 半透明，能看到里面
+        shininess: 100
     });
-    const glassMesh = new THREE.Mesh(glassGeo, glassMat);
-    group.add(glassMesh);
+    const sphere = new THREE.Mesh(geo, mat);
+    group.add(sphere);
 
-    // 内层：漂浮的图标 (Sprite)
-    const iconMap = createIconTexture(data.icon);
-    const iconMat = new THREE.SpriteMaterial({ map: iconMap });
-    const iconSprite = new THREE.Sprite(iconMat);
-    iconSprite.scale.set(1.5, 1.5, 1);
-    group.add(iconSprite);
+    // 内部图标 (Sprite)
+    const icon = createIconSprite(item.icon);
+    group.add(icon);
 
-    // 初始化位置
-    group.position.set(15, (Math.random() - 0.5) * 8, 0);
-    group.userData = { 
-        word: data, 
-        speed: 0.04 + Math.random() * 0.03, 
-        offset: Math.random() * 100 
-    };
+    // 气球绳子 (Line)
+    const lineGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,-1.5,0), new THREE.Vector3(0,-2.5,0)]);
+    const lineMat = new THREE.LineBasicMaterial({ color: 0xffffff });
+    const line = new THREE.Line(lineGeo, lineMat);
+    group.add(line);
+
+    // 初始位置 (屏幕下方飞上来，或者右边飞过来，这里选右边飞)
+    group.position.set(15, (Math.random()-0.5)*8, 0);
+    group.userData = { word: item, speed: 0.05 + Math.random()*0.05 };
 
     scene.add(group);
-    bubbles.push(group);
+    balloons.push(group);
 }
 
-// --- 6. 游戏交互 (手势光标) ---
-const cursor = new THREE.Mesh(
-    new THREE.SphereGeometry(0.3, 16, 16),
-    new THREE.MeshBasicMaterial({ color: 0xffff00 })
-);
-// 光标拖尾
-const trailGeo = new THREE.BufferGeometry();
-const trailMat = new THREE.LineBasicMaterial({ color: 0xffff00 });
-scene.add(cursor);
+// --- 5. 手势光标 (改成可爱的大手) ---
+const cursorGroup = new THREE.Group();
+// 光标本体
+const handIcon = createIconSprite('🖐️'); // 使用手掌 Emoji
+handIcon.scale.set(2, 2, 1);
+cursorGroup.add(handIcon);
 
-let score = 0;
-let handPos = new THREE.Vector3(100, 100, 0); // 初始在屏幕外
+// 彩虹拖尾 (简单的圆圈跟随)
+const trails = [];
+for(let i=0; i<5; i++) {
+    const mesh = new THREE.Mesh(
+        new THREE.SphereGeometry(0.2 - i*0.03, 16, 16),
+        new THREE.MeshBasicMaterial({ color: 0xffffff }) // 彩色在动画里变
+    );
+    scene.add(mesh);
+    trails.push(mesh);
+}
+scene.add(cursorGroup);
 
-// 核心循环
+// --- 6. 打击乐音效 (Web Audio API) ---
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+function playMarimba(noteFreq) {
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(noteFreq, audioCtx.currentTime);
+    gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5); // 快速衰减，像敲击
+    
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.5);
+}
+
+// --- 7. 动画循环 ---
+const clock = new THREE.Clock();
+let handPos = new THREE.Vector3(12, 0, 0); // 初始在屏幕外
+
 function animate() {
     requestAnimationFrame(animate);
-    
-    // 1. 光标跟随 (Lerp)
-    cursor.position.lerp(handPos, 0.2);
+    const time = clock.getElapsedTime();
 
-    // 2. 粒子更新
-    for (let i = particles.length - 1; i >= 0; i--) {
-        const p = particles[i];
-        p.position.add(p.userData.vel); // 移动
-        p.userData.life -= 0.03; // 寿命衰减
-        p.scale.setScalar(p.userData.life); // 变小
-        if (p.userData.life <= 0) {
-            scene.remove(p);
-            particles.splice(i, 1);
-        }
+    // 1. 光标跟随 (Lerp 平滑)
+    cursorGroup.position.lerp(handPos, 0.2);
+    
+    // 2. 拖尾特效
+    for(let i=0; i<trails.length; i++) {
+        // 滞后跟随
+        trails[i].position.lerp(cursorGroup.position, 0.1 * (i+1));
+        // 变色
+        trails[i].material.color.setHSL((time * 0.5 + i * 0.1) % 1, 1, 0.5);
     }
 
+    // 3. 气球逻辑
     if (!isPaused) {
-        // 3. 泡泡更新
-        for (let i = bubbles.length - 1; i >= 0; i--) {
-            const b = bubbles[i];
+        for (let i = balloons.length - 1; i >= 0; i--) {
+            const b = balloons[i];
             
-            // 移动逻辑：波浪式前进
+            // 移动
             b.position.x -= b.userData.speed;
-            b.position.y += Math.sin(performance.now() * 0.002 + b.userData.offset) * 0.02;
-            b.rotation.z += 0.01;
-            b.rotation.x += 0.01;
+            b.position.y += Math.sin(time * 3 + b.userData.speed * 100) * 0.02; // 上下浮动
+            b.rotation.z = Math.sin(time * 2) * 0.1; // 左右摇摆
 
             // 碰撞检测
-            if (b.position.distanceTo(cursor.position) < 1.8) {
-                handleCatch(b, i);
+            if (b.position.distanceTo(cursorGroup.position) < 2.0) {
+                popBalloon(b, i);
             }
             
-            // 出界移除
+            // 出界
             if (b.position.x < -15) {
                 scene.remove(b);
-                bubbles.splice(i, 1);
+                balloons.splice(i, 1);
             }
         }
     }
-    
     renderer.render(scene, camera);
 }
 
-// 捕获逻辑
-function handleCatch(bubble, index) {
-    const data = bubble.userData.word;
+// 击破气球
+function popBalloon(obj, index) {
+    const data = obj.userData.word;
     
-    // 1. 爆炸特效
-    spawnExplosion(bubble.position, data.color);
-    
-    // 2. 移除泡泡
-    scene.remove(bubble);
-    bubbles.splice(index, 1);
-    
-    // 3. 加分音效 (合成音)
-    playSynthSound();
-    
-    // 4. 更新分数
+    // 移除
+    scene.remove(obj);
+    balloons.splice(index, 1);
+
+    // 播放打击乐 (根据颜色算频率，让声音有变化)
+    playMarimba(300 + (data.color % 500)); 
+
+    // 粒子特效 (50个碎片)
+    for(let k=0; k<30; k++) {
+        const p = new THREE.Mesh(
+            new THREE.PlaneGeometry(0.2, 0.2),
+            new THREE.MeshBasicMaterial({ color: data.color, side: THREE.DoubleSide })
+        );
+        p.position.copy(obj.position);
+        p.rotation.set(Math.random()*3, Math.random()*3, Math.random()*3);
+        scene.add(p);
+        
+        // 炸开动画
+        gsap.to(p.position, {
+            x: p.position.x + (Math.random()-0.5)*5,
+            y: p.position.y + (Math.random()-0.5)*5,
+            duration: 0.8,
+            ease: "power2.out"
+        });
+        gsap.to(p.scale, { x: 0, y: 0, duration: 0.8, onComplete: () => scene.remove(p) });
+    }
+
+    showCard(data);
+}
+
+// 显示卡片
+let score = 0;
+function showCard(data) {
+    isPaused = true;
     score += 10;
     document.getElementById('score').innerText = score;
-    
-    // 5. 进入“学习模式” (暂停游戏，显示卡片)
-    showLearningCard(data);
-}
 
-function showLearningCard(data) {
-    isPaused = true;
-    
-    // 更新卡片内容
-    document.getElementById('card-icon').innerText = data.icon;
-    document.getElementById('card-en').innerText = data.en;
-    document.getElementById('card-cn').innerText = data.cn;
-    document.getElementById('card-pron').innerText = data.pron;
-    
-    // 动画显示
-    const card = document.getElementById('learning-card');
-    card.classList.add('show');
-    
-    // 朗读 (确保发音)
-    speakWord(data.en);
-    
-    // 3秒后恢复游戏
-    setTimeout(() => {
-        card.classList.remove('show');
-        isPaused = false;
-    }, 3000);
-}
+    // UI 更新
+    document.getElementById('c-icon').innerText = data.icon;
+    document.getElementById('c-word').innerText = data.en;
+    document.getElementById('c-cn').innerText = data.cn;
 
-// --- 7. 音频核心 (解决没声音的关键) ---
-function speakWord(text) {
-    window.speechSynthesis.cancel(); // 打断之前的
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = 'en-US';
-    u.rate = 0.9;
-    u.volume = 1.0;
+    const modal = document.getElementById('card-modal');
+    modal.classList.add('show');
+
+    // 发音
+    const u = new SpeechSynthesisUtterance(data.en);
+    u.rate = 0.8; 
     window.speechSynthesis.speak(u);
+
+    setTimeout(() => {
+        modal.classList.remove('show');
+        isPaused = false;
+    }, 2500);
 }
 
-function playSynthSound() {
-    // 简单的“叮”声
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContext) return;
-    const ctx = new AudioContext();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(800, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.3);
-    gain.gain.setValueAtTime(0.3, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.3);
-}
-
-// --- 8. MediaPipe 初始化 ---
+// --- 8. 手势识别 ---
 const hands = new window.Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
 hands.setOptions({ maxNumHands: 1, minDetectionConfidence: 0.7 });
 hands.onResults(res => {
     if (res.multiHandLandmarks && res.multiHandLandmarks.length > 0) {
-        const p = res.multiHandLandmarks[0][8];
-        handPos.set((p.x - 0.5) * 25, -(p.y - 0.5) * 15, 0);
+        const p = res.multiHandLandmarks[0][8]; // 食指
+        // 映射坐标 (把 0~1 映射到 WebGL 坐标系)
+        const x = (p.x - 0.5) * 25;
+        const y = -(p.y - 0.5) * 15;
+        handPos.set(x, y, 0);
     }
 });
-const cam = new window.Camera(document.getElementById('webcam'), {
-    onFrame: async () => { await hands.send({image: document.getElementById('webcam')}); },
+
+// --- 9. 启动按钮 ---
+const videoElement = document.getElementById('cam-preview');
+const cameraUtils = new window.Camera(videoElement, {
+    onFrame: async () => { await hands.send({image: videoElement}); },
     width: 640, height: 480
 });
 
-// --- 9. 启动按钮 (最重要的声音解锁) ---
-document.getElementById('btn-start').addEventListener('click', () => {
-    // 1. 界面切换
+document.getElementById('btn-start').onclick = () => {
     document.getElementById('start-screen').style.display = 'none';
+    document.getElementById('hud').style.display = 'block';
     
-    // 2. 强制播放一个空声音，解锁 AudioContext
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    ctx.resume().then(() => {
-        console.log('AudioContext Unlocked');
-    });
+    // 启动音频
+    audioCtx.resume();
     
-    // 3. 强制触发一次语音引擎 (预热)
-    speakWord(""); 
-
-    // 4. 启动游戏
-    cam.start();
+    cameraUtils.start();
     animate();
-    setInterval(spawnBubble, 2500); // 开始生成泡泡
-});
+    
+    // 开始生成气球
+    setInterval(spawnBalloon, 2000);
+};
 
-// 响应调整
 window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
