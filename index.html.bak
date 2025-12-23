@@ -2,10 +2,9 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Magic Hands: Word Galaxy Pro</title>
-    <!-- 依赖库：MediaPipe + Three.js + GSAP(物理动画) -->
+    <title>Magic Hands: Word Galaxy v4</title>
+    <!-- 核心库引入 -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -13,33 +12,34 @@
     <link rel="stylesheet" href="./style.css">
 </head>
 <body>
-    <div id="game-container">
-        <!-- 背景层：Canvas 会渲染到这里 -->
-        <canvas id="game-canvas"></canvas>
+    <div id="game-app">
+        <!-- 启动大门：解决音频和摄像头权限的关键 -->
+        <div id="start-screen">
+            <div class="pixar-logo">Magic Hands</div>
+            <p>准备好进入英语星系了吗？</p>
+            <button id="btn-start">点击进入</button>
+        </div>
 
-        <!-- UI 层 -->
-        <div id="overlay-ui">
-            <div class="header">
-                <div class="score-badge">? STARS: <span id="score">0</span></div>
+        <!-- 游戏层 -->
+        <div id="game-ui" style="display: none;">
+            <div class="hud">
+                <div class="score-box">? 星星: <span id="score">0</span></div>
             </div>
-
-            <div id="word-card" class="glass-card">
-                <div class="label">LEARN THIS WORD</div>
+            
+            <!-- 单词卡片：皮克斯风格 -->
+            <div id="word-display" class="card-glow">
+                <div id="word-emoji">??</div>
                 <h1 id="word-en">APPLE</h1>
                 <h2 id="word-cn">苹果</h2>
-                <div id="pron">/??p.?l/</div>
+                <div id="word-pron">/??p.?l/</div>
             </div>
 
-            <div id="interaction-hint">用手触碰发光的星球！</div>
+            <!-- 反馈提示 -->
+            <div id="combo-text">PERFECT!</div>
         </div>
 
-        <video id="webcam" autoplay playsinline></video>
-        
-        <!-- 加载动画 -->
-        <div id="loader">
-            <div class="orb"></div>
-            <p>正在召唤魔法宇宙...</p>
-        </div>
+        <video id="input_video" playsinline></video>
+        <canvas id="game-canvas"></canvas>
     </div>
     <script type="module" src="/main.js"></script>
 </body>

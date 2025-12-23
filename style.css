@@ -1,52 +1,36 @@
-@import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Quicksand:wght@700&display=swap');
-
-body {
-    margin: 0; background: #08081a; overflow: hidden;
-    font-family: 'Quicksand', sans-serif;
+/* 强制使用系统圆体，彻底杜绝中文乱码 */
+body, html {
+    margin: 0; padding: 0; overflow: hidden;
+    font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Source Han Sans CN", sans-serif;
+    background: #000;
 }
 
-#start-screen {
+#start-overlay {
     position: fixed; inset: 0; background: radial-gradient(circle, #2e1a47, #050510);
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    z-index: 999; color: white;
+    z-index: 100; display: flex; align-items: center; justify-content: center; color: white; text-align: center;
 }
 
-.pixar-logo {
-    font-family: 'Fredoka One', cursive; font-size: 80px;
-    background: linear-gradient(to bottom, #fff, #ffd700);
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    margin-bottom: 20px;
+.intro-box { animation: fadeIn 1s ease; }
+#start-btn {
+    padding: 20px 80px; font-size: 28px; background: #00f2ff; border: none; border-radius: 50px;
+    cursor: pointer; font-weight: bold; box-shadow: 0 0 30px rgba(0,242,255,0.4);
 }
 
-#btn-start {
-    padding: 20px 60px; font-size: 24px; border-radius: 50px; border: none;
-    background: #00f2ff; color: #050510; cursor: pointer;
-    box-shadow: 0 0 20px rgba(0, 242, 255, 0.5); font-weight: bold;
+#game-ui { position: absolute; inset: 0; pointer-events: none; z-index: 10; }
+.score-board { position: absolute; top: 30px; left: 30px; font-size: 32px; color: #ffd700; font-weight: bold; }
+
+.word-card {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    text-align: center; color: white; opacity: 0; scale: 0.5;
 }
 
-#game-ui { position: absolute; inset: 0; pointer-events: none; }
+#w-icon { font-size: 120px; margin-bottom: 10px; }
+#w-en { font-size: 80px; font-weight: 900; letter-spacing: 5px; text-shadow: 0 0 20px rgba(255,255,255,0.5); }
+#w-cn { font-size: 40px; color: #00f2ff; margin-top: 10px; }
 
-.hud { padding: 40px; }
-.score-box {
-    font-size: 30px; color: #ffd700; background: rgba(255,255,255,0.1);
-    padding: 10px 30px; border-radius: 30px; backdrop-filter: blur(10px); display: inline-block;
+#webcam {
+    position: absolute; bottom: 20px; right: 20px; width: 180px;
+    border-radius: 20px; border: 2px solid rgba(255,255,255,0.2); transform: scaleX(-1);
 }
 
-#word-display {
-    position: absolute; left: 50%; bottom: 100px; transform: translateX(-50%);
-    text-align: center; color: white; min-width: 400px;
-}
-
-#word-emoji { font-size: 100px; filter: drop-shadow(0 0 20px rgba(255,255,255,0.5)); }
-#word-en { font-size: 90px; margin: 0; letter-spacing: 5px; }
-#word-cn { font-size: 40px; color: #00f2ff; margin-top: -10px; }
-
-#input_video {
-    position: absolute; right: 20px; top: 20px; width: 180px;
-    border-radius: 20px; border: 3px solid rgba(255,255,255,0.2); transform: scaleX(-1);
-}
-
-#combo-text {
-    position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%) scale(0);
-    font-size: 120px; color: #ffd700; font-family: 'Fredoka One'; text-shadow: 0 0 30px orange;
-}
+@keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
