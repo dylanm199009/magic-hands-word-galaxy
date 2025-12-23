@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Magic Hands: Word Galaxy v4</title>
-    <!-- 核心库引入 -->
+    <meta charset="UTF-8"> <!-- 必须在最前面，解决乱码 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Magic Hands: Word Galaxy V5</title>
+    <!-- 依赖库 -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -12,33 +12,27 @@
     <link rel="stylesheet" href="./style.css">
 </head>
 <body>
-    <div id="game-app">
-        <!-- 启动大门：解决音频和摄像头权限的关键 -->
-        <div id="start-screen">
-            <div class="pixar-logo">Magic Hands</div>
-            <p>准备好进入英语星系了吗？</p>
-            <button id="btn-start">点击进入</button>
+    <div id="game-container">
+        <!-- 启动引导页：解决音频权限的关键 -->
+        <div id="start-overlay">
+            <div class="intro-box">
+                <h1 style="font-size: 60px; margin-bottom: 10px;">? 单词星系</h1>
+                <p style="font-size: 20px; margin-bottom: 30px;">用手指触碰漂浮的泡泡，学习英文单词！</p>
+                <button id="start-btn">开启魔法</button>
+            </div>
         </div>
 
-        <!-- 游戏层 -->
+        <!-- 游戏 HUD -->
         <div id="game-ui" style="display: none;">
-            <div class="hud">
-                <div class="score-box">? 星星: <span id="score">0</span></div>
+            <div class="score-board">分数: <span id="score">0</span></div>
+            <div id="word-info" class="word-card">
+                <div id="w-icon">?</div>
+                <div id="w-en">READY?</div>
+                <div id="w-cn">准备好了吗？</div>
             </div>
-            
-            <!-- 单词卡片：皮克斯风格 -->
-            <div id="word-display" class="card-glow">
-                <div id="word-emoji">??</div>
-                <h1 id="word-en">APPLE</h1>
-                <h2 id="word-cn">苹果</h2>
-                <div id="word-pron">/??p.?l/</div>
-            </div>
-
-            <!-- 反馈提示 -->
-            <div id="combo-text">PERFECT!</div>
         </div>
 
-        <video id="input_video" playsinline></video>
+        <video id="webcam" playsinline></video>
         <canvas id="game-canvas"></canvas>
     </div>
     <script type="module" src="/main.js"></script>
