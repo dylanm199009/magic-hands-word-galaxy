@@ -1,159 +1,169 @@
-import * as THREE from 'three';
+ï»¿import * as THREE from 'three';
 
-// 1. À©³ä´Ê¿â
-const LEVELS = [
-    { name: "É­ÁÖ¶¯Îï", data: [
-        { en: 'BEAR', cn: 'ĞÜ', icon: '??', pron: '/ber/' },
-        { en: 'TIGER', cn: 'ÀÏ»¢', icon: '??', pron: '/?ta?¨À?r/' },
-        { en: 'RABBIT', cn: 'ÍÃ×Ó', icon: '?r?b?t/' },
-        { en: 'LION', cn: 'Ê¨×Ó', icon: '??', pron: '/?la??n/' }
-    ]},
-    { name: "ÃÀÎ¶Ë®¹û", data: [
-        { en: 'APPLE', cn: 'Æ»¹û', icon: '??', pron: '/??pl/' },
-        { en: 'GRAPE', cn: 'ÆÏÌÑ', icon: '??', pron: '/¨Àre?p/' },
-        { en: 'CHERRY', cn: 'Ó£ÌÒ', icon: '?t?eri/' }
-    ]},
-    { name: "½»Í¨¹¤¾ß", data: [
-        { en: 'PLANE', cn: '·É»ú', icon: '??', pron: '/ple?n/' },
-        { en: 'SHIP', cn: 'ÂÖ´¬', icon: '??', pron: '/??p/' },
-        { en: 'ROCKET', cn: '»ğ¼ı', icon: '??', pron: '/?r¨»?k?t/' }
-    ]}
+// 1. è¯åº“ï¼šå…³é”®ä¿®å¤ï¼ä½¿ç”¨ Unicode ç¼–ç è§£å†³ä¸­æ–‡ä¹±ç 
+// \u732b = çŒ«, \u72d7 = ç‹—, \u82f9\u679c = è‹¹æœ ...
+const WORD_POOL = [
+    { en: 'APPLE', cn: '\u82f9\u679c', icon: '??', pron: '/\u02c8\u00e6p.l/', color: 0xff8a80 },
+    { en: 'BANANA', cn: '\u9999\u8549', icon: '??', pron: '/b\u0259\u02c8n\u00e6n.\u0259/', color: 0xffd180 },
+    { en: 'CAT', cn: '\u732b\u54aa', icon: '??', pron: '/k\u00e6t/', color: 0x80deea },
+    { en: 'DOG', cn: '\u5c0f\u72d7', icon: '??', pron: '/d\u0254\u02d0\u0261/', color: 0xa1887f },
+    { en: 'ROCKET', cn: '\u706b\u7bad', icon: '??', pron: '/\u02c8r\u0251\u02d0.k\u026at/', color: 0xea80fc },
+    { en: 'STAR', cn: '\u661f\u661f', icon: '?', pron: '/st\u0251\u02d0r/', color: 0xfff59d }
 ];
 
-// 2. ÒıÇæ³õÊ¼»¯
+// 2. åœºæ™¯è®¾ç½®
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('game-canvas'), antialias: true, alpha: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 
-// »·¾³¹â
-scene.add(new THREE.AmbientLight(0xffffff, 0.8));
-const sunLight = new THREE.DirectionalLight(0xffffff, 0.5);
-sunLight.position.set(5, 5, 5);
-scene.add(sunLight);
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+const dirLight = new THREE.DirectionalLight(0xffffff, 0.5);
+dirLight.position.set(10, 10, 10);
+scene.add(ambientLight);
+scene.add(dirLight);
+camera.position.z = 10;
 
-// ´´½¨·ÉĞĞÏòµ¼ (3D Ğ¡Çò/Áé¶¯½ÇÉ«)
-const guideGroup = new THREE.Group();
-const guideMesh = new THREE.Mesh(
-    new THREE.SphereGeometry(0.8, 32, 32),
-    new THREE.MeshToonMaterial({ color: 0x38bdf8 })
-);
-guideGroup.add(guideMesh);
-scene.add(guideGroup);
-
-// Æ¯¸¡µÄÆøÅİÄ¿±ê
-const bubbleGeo = new THREE.SphereGeometry(1.5, 32, 32);
-const bubbleMat = new THREE.MeshPhongMaterial({ color: 0xffffff, transparent: true, opacity: 0.4, shininess: 100 });
-const bubble = new THREE.Mesh(bubbleGeo, bubbleMat);
-scene.add(bubble);
-
-camera.position.z = 15;
-
-// 3. ÓÎÏ·ºËĞÄÂß¼­
-let currentLevel = 0;
-let currentIndex = 0;
-let score = 0;
-let isFlipping = false;
-let handX = 0, handY = 0;
-
-window.startGame = (lv) => {
-    // ¼¤»îÒôÆµ
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    audioCtx.resume();
-    window.speechSynthesis.getVoices(); // Ô¤ÈÈ
-
-    currentLevel = lv;
-    currentIndex = 0;
-    document.getElementById('start-screen').style.display = 'none';
-    document.getElementById('hud').style.display = 'block';
-    document.getElementById('level-name').innerText = LEVELS[lv].name;
+// 3. è¾…åŠ©å‡½æ•°ï¼šç”Ÿæˆ Emoji è´´å›¾ (æ— éœ€ä¸Šä¼ å›¾ç‰‡)
+function createEmojiTexture(emoji, colorHex) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 128; canvas.height = 128;
+    const ctx = canvas.getContext('2d');
     
-    spawnBubble();
-    cameraSetup.start();
-};
-
-function spawnBubble() {
-    bubble.position.set((Math.random()-0.5)*15, (Math.random()-0.5)*10, 0);
-    bubble.scale.set(1, 1, 1);
-    isFlipping = false;
+    // èƒŒæ™¯è‰²
+    ctx.fillStyle = '#' + new THREE.Color(colorHex).getHexString();
+    ctx.beginPath();
+    ctx.arc(64, 64, 60, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Emoji
+    ctx.font = '80px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(emoji, 64, 70);
+    
+    return new THREE.CanvasTexture(canvas);
 }
 
-function handleHit() {
-    if (isFlipping) return;
-    isFlipping = true;
+// 4. æ°”æ³¡ç³»ç»Ÿ (Bubble System)
+const bubbles = []; // å­˜æ”¾æ‰€æœ‰æ´»åŠ¨æ°”æ³¡
+const bubbleSpeed = 0.05;
+let isPaused = false; // å­¦ä¹ å¡ç‰‡å¼¹å‡ºæ—¶æš‚åœæ¸¸æˆ
 
-    const data = LEVELS[currentLevel].data[currentIndex];
+function spawnBubble() {
+    if (isPaused) return;
     
-    // UI ¸³Öµ
-    document.getElementById('w-icon').innerText = data.icon;
-    document.getElementById('w-en').innerText = data.en;
-    document.getElementById('w-cn').innerText = data.cn;
-    document.getElementById('w-pron').innerText = data.pron;
+    // éšæœºé€‰ä¸€ä¸ªå•è¯
+    const wordData = WORD_POOL[Math.floor(Math.random() * WORD_POOL.length)];
+    
+    const geometry = new THREE.SphereGeometry(1.2, 32, 32);
+    const material = new THREE.MeshPhongMaterial({ 
+        map: createEmojiTexture(wordData.icon, wordData.color),
+        transparent: true,
+        opacity: 0.9,
+        shininess: 50
+    });
+    
+    const bubble = new THREE.Mesh(geometry, material);
+    
+    // åˆå§‹ä½ç½®ï¼šå±å¹•æœ€å³ä¾§ä¹‹å¤–
+    bubble.position.x = 12; 
+    // Yè½´éšæœºé«˜åº¦
+    bubble.position.y = (Math.random() - 0.5) * 8; 
+    bubble.userData = { 
+        word: wordData, 
+        offset: Math.random() * 10, // ç”¨äºä¸Šä¸‹æµ®åŠ¨çš„éšæœºç›¸ä½
+        speed: 0.05 + Math.random() * 0.03 // éšæœºé€Ÿåº¦
+    };
+    
+    scene.add(bubble);
+    bubbles.push(bubble);
+}
 
-    // ·­×ª¿¨Æ¬Ğ§¹û
-    const card = document.getElementById('card-container');
-    card.classList.add('active');
-    setTimeout(() => card.classList.add('flipped'), 100);
+// 5. æ‰‹åŠ¿å…‰æ ‡ (é­”æ³•æ‰‹)
+const cursorMesh = new THREE.Mesh(
+    new THREE.SphereGeometry(0.3, 16, 16),
+    new THREE.MeshBasicMaterial({ color: 0xffffff })
+);
+// åŠ ä¸ªå…‰ç¯
+const cursorRing = new THREE.Mesh(
+    new THREE.RingGeometry(0.4, 0.5, 32),
+    new THREE.MeshBasicMaterial({ color: 0xffeb3b, side: THREE.DoubleSide })
+);
+cursorMesh.add(cursorRing);
+scene.add(cursorMesh);
 
-    // ·¢Òô
-    const msg = new SpeechSynthesisUtterance(data.en);
-    msg.lang = 'en-US';
-    msg.rate = 0.8;
-    window.speechSynthesis.speak(msg);
+// 6. æ¸¸æˆäº¤äº’é€»è¾‘
+let score = 0;
+let handPos = new THREE.Vector3(0, 0, 0);
 
-    // ¼Ó·Ö
-    score += 10;
-    document.getElementById('score').innerText = score;
-
-    // ÆøÅİ±¬ÁÑĞ§¹û
-    gsap.to(bubble.scale, { x: 0, y: 0, z: 0, duration: 0.3 });
-
-    // ÖØÖÃ²¢ÒÆ¶¯µ½ÏÂÒ»¸ö
+function showCard(wordData) {
+    isPaused = true;
+    
+    // æ›´æ–° UI
+    document.getElementById('card-icon').innerText = wordData.icon;
+    document.getElementById('card-en').innerText = wordData.en;
+    document.getElementById('card-cn').innerText = wordData.cn; // è¿™é‡Œå·²ç»æ˜¯ Unicodeï¼Œç»å¯¹ä¸ä¹±ç 
+    document.getElementById('card-pron').innerText = wordData.pron;
+    
+    const cardEl = document.getElementById('learning-card');
+    cardEl.classList.add('visible');
+    
+    // å‘éŸ³
+    const utter = new SpeechSynthesisUtterance(wordData.en);
+    utter.rate = 0.8;
+    window.speechSynthesis.speak(utter);
+    
+    // 2.5ç§’åè‡ªåŠ¨å…³é—­
     setTimeout(() => {
-        card.classList.remove('flipped');
-        setTimeout(() => {
-            card.classList.remove('active');
-            currentIndex = (currentIndex + 1) % LEVELS[currentLevel].data.length;
-            spawnBubble();
-        }, 300);
+        cardEl.classList.remove('visible');
+        isPaused = false;
     }, 2500);
 }
 
-// 4. ÊÖÊÆÓë¸úËæÏµÍ³
-const hands = new window.Hands({
-    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
-});
-hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.7 });
-
-hands.onResults((results) => {
-    if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-        const finger = results.multiHandLandmarks[0][8];
-        handX = (finger.x - 0.5) * 28;
-        handY = -(finger.y - 0.5) * 18;
-    }
-});
-
-const cameraSetup = new window.Camera(document.getElementById('webcam'), {
-    onFrame: async () => { await hands.send({image: document.getElementById('webcam')}); },
-    width: 640, height: 480
-});
+// 7. åŠ¨ç”»å¾ªç¯
+const clock = new THREE.Clock();
 
 function animate() {
     requestAnimationFrame(animate);
+    const time = clock.getElapsedTime();
     
-    // ½ÇÉ«¸úËæÊÖÊÆ£¨Lerp Ë¿»¬²åÖµ£©
-    guideGroup.position.x += (handX - guideGroup.position.x) * 0.15;
-    guideGroup.position.y += (handY - guideGroup.position.y) * 0.15;
+    // 1. å…‰ç¯åŠ¨ç”»
+    cursorRing.rotation.z -= 0.05;
     
-    // ¼òµ¥µÄ°Ú¶¯£¨¸³ÓèÉúÃüÁ¦£©
-    guideMesh.rotation.z = Math.sin(Date.now()*0.005) * 0.2;
-    
-    // Åö×²¼ì²â
-    if (!isFlipping) {
-        const dist = guideGroup.position.distanceTo(bubble.position);
-        if (dist < 2.5) handleHit();
+    if (!isPaused) {
+        // 2. æ°”æ³¡é€»è¾‘
+        for (let i = bubbles.length - 1; i >= 0; i--) {
+            const b = bubbles[i];
+            
+            // å‘å·¦ç§»åŠ¨
+            b.position.x -= b.userData.speed;
+            // ä¸Šä¸‹æµ®åŠ¨ (Sine wave)
+            b.position.y += Math.sin(time * 2 + b.userData.offset) * 0.02;
+            b.rotation.z -= 0.01;
+            
+            // ç¢°æ’æ£€æµ‹
+            const dist = b.position.distanceTo(handPos);
+            if (dist < 1.5) {
+                // å‡»ä¸­ï¼
+                score += 10;
+                document.getElementById('score').innerText = score;
+                
+                // ç§»é™¤æ°”æ³¡
+                scene.remove(b);
+                bubbles.splice(i, 1);
+                
+                // è§¦å‘å­¦ä¹ äº‹ä»¶
+                showCard(b.userData.word);
+            }
+            
+            // è¶…å‡ºå±å¹•å·¦ä¾§ç§»é™¤
+            else if (b.position.x < -12) {
+                scene.remove(b);
+                bubbles.splice(i, 1);
+            }
+        }
     }
     
     renderer.render(scene, camera);
 }
-animate();

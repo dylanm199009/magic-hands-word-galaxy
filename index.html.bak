@@ -1,10 +1,9 @@
-<!DOCTYPE html>
+ï»¿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8"> <!-- ±ØÐëÔÚ×îÇ°Ãæ£¬½â¾öÂÒÂë -->
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Magic Hands: Word Galaxy V5</title>
-    <!-- ÒÀÀµ¿â -->
+    <title>Magic Hands: Sky Explorer</title>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -12,23 +11,36 @@
     <link rel="stylesheet" href="./style.css">
 </head>
 <body>
-    <div id="game-container">
-        <!-- Æô¶¯Òýµ¼Ò³£º½â¾öÒôÆµÈ¨ÏÞµÄ¹Ø¼ü -->
-        <div id="start-overlay">
-            <div class="intro-box">
-                <h1 style="font-size: 60px; margin-bottom: 10px;">? µ¥´ÊÐÇÏµ</h1>
-                <p style="font-size: 20px; margin-bottom: 30px;">ÓÃÊÖÖ¸´¥ÅöÆ¯¸¡µÄÅÝÅÝ£¬Ñ§Ï°Ó¢ÎÄµ¥´Ê£¡</p>
-                <button id="start-btn">¿ªÆôÄ§·¨</button>
+    <div id="game-app">
+        <!-- å¯åŠ¨å¤§åŽ… -->
+        <div id="start-screen">
+            <div class="sky-bg-vfx"></div>
+            <h1 class="game-title">Magic Hands</h1>
+            <p class="game-subtitle">äº‘ç«¯å•è¯å¤§å†’é™©</p>
+            <div class="level-selector">
+                <button onclick="startGame(0)">å…³å¡ 1: æ£®æž—åŠ¨ç‰©</button>
+                <button onclick="startGame(1)">å…³å¡ 2: ç¾Žå‘³æ°´æžœ</button>
+                <button onclick="startGame(2)">å…³å¡ 3: äº¤é€šå·¥å…·</button>
             </div>
         </div>
 
-        <!-- ÓÎÏ· HUD -->
-        <div id="game-ui" style="display: none;">
-            <div class="score-board">·ÖÊý: <span id="score">0</span></div>
-            <div id="word-info" class="word-card">
-                <div id="w-icon">?</div>
-                <div id="w-en">READY?</div>
-                <div id="w-cn">×¼±¸ºÃÁËÂð£¿</div>
+        <!-- æ¸¸æˆ HUD -->
+        <div id="hud" style="display: none;">
+            <div class="score-tag">?? <span id="score">0</span></div>
+            <div class="level-tag">LEVEL: <span id="level-name">-</span></div>
+            
+            <!-- æ ¸å¿ƒ 3D ç¿»è½¬å¡ç‰‡å®¹å™¨ -->
+            <div id="card-container" class="flip-container">
+                <div class="flipper">
+                    <div class="front">
+                        <div id="w-icon">?</div>
+                    </div>
+                    <div class="back">
+                        <h1 id="w-en">WORD</h1>
+                        <h2 id="w-cn">ä¸­æ–‡</h2>
+                        <div id="w-pron">/phonetic/</div>
+                    </div>
+                </div>
             </div>
         </div>
 

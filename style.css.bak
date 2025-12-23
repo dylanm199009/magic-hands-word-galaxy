@@ -1,36 +1,58 @@
-/* 强制使用系统圆体，彻底杜绝中文乱码 */
+/* 解决乱码，使用更现代的圆体 */
+@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&display=swap');
+
 body, html {
     margin: 0; padding: 0; overflow: hidden;
-    font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Source Han Sans CN", sans-serif;
-    background: #000;
+    font-family: 'Fredoka', "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #a5f3fc; /* 天蓝色 */
 }
 
-#start-overlay {
-    position: fixed; inset: 0; background: radial-gradient(circle, #2e1a47, #050510);
-    z-index: 100; display: flex; align-items: center; justify-content: center; color: white; text-align: center;
+#start-screen {
+    position: fixed; inset: 0; z-index: 100;
+    background: linear-gradient(to bottom, #7dd3fc, #e0f2fe);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
 }
 
-.intro-box { animation: fadeIn 1s ease; }
-#start-btn {
-    padding: 20px 80px; font-size: 28px; background: #00f2ff; border: none; border-radius: 50px;
-    cursor: pointer; font-weight: bold; box-shadow: 0 0 30px rgba(0,242,255,0.4);
+.game-title { font-size: 80px; color: #0369a1; margin: 0; text-shadow: 4px 4px 0 white; }
+.game-subtitle { font-size: 24px; color: #0ea5e9; margin-bottom: 40px; }
+
+.level-selector button {
+    display: block; width: 280px; padding: 15px; margin: 10px;
+    border: none; border-radius: 20px; background: white; color: #0369a1;
+    font-size: 20px; font-weight: 600; cursor: pointer;
+    box-shadow: 0 4px 0 #bae6fd; transition: transform 0.2s;
 }
+.level-selector button:hover { transform: scale(1.05); }
 
-#game-ui { position: absolute; inset: 0; pointer-events: none; z-index: 10; }
-.score-board { position: absolute; top: 30px; left: 30px; font-size: 32px; color: #ffd700; font-weight: bold; }
+#hud { position: absolute; inset: 0; pointer-events: none; z-index: 10; }
+.score-tag { position: absolute; top: 30px; left: 30px; font-size: 32px; color: #f59e0b; font-weight: bold; background: white; padding: 10px 30px; border-radius: 40px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
 
-.word-card {
-    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
-    text-align: center; color: white; opacity: 0; scale: 0.5;
+/* 3D 翻转卡片样式 */
+.flip-container {
+    perspective: 1000px;
+    position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%);
+    width: 320px; height: 380px; opacity: 0;
 }
-
-#w-icon { font-size: 120px; margin-bottom: 10px; }
-#w-en { font-size: 80px; font-weight: 900; letter-spacing: 5px; text-shadow: 0 0 20px rgba(255,255,255,0.5); }
-#w-cn { font-size: 40px; color: #00f2ff; margin-top: 10px; }
-
-#webcam {
-    position: absolute; bottom: 20px; right: 20px; width: 180px;
-    border-radius: 20px; border: 2px solid rgba(255,255,255,0.2); transform: scaleX(-1);
+.flipper {
+    position: relative; width: 100%; height: 100%;
+    transition: 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-style: preserve-3d;
 }
+.flip-container.active { opacity: 1; }
+.flip-container.flipped .flipper { transform: rotateY(180deg); }
 
-@keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+.front, .back {
+    position: absolute; width: 100%; height: 100%;
+    backface-visibility: hidden; border-radius: 40px;
+    background: white; border: 8px solid #f0f9ff;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+}
+.back { transform: rotateY(180deg); background: #f0fdf4; border-color: #dcfce7; }
+
+#w-icon { font-size: 140px; }
+#w-en { font-size: 56px; color: #166534; margin: 0; }
+#w-cn { font-size: 32px; color: #15803d; }
+#w-pron { font-size: 20px; color: #86efac; }
+
+#webcam { position: absolute; bottom: 20px; right: 20px; width: 180px; border-radius: 20px; border: 4px solid white; transform: scaleX(-1); }
