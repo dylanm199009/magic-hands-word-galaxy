@@ -1,60 +1,95 @@
-@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&display=swap');
 
-body, html { margin: 0; overflow: hidden; font-family: 'Fredoka', sans-serif; background: #222; }
+body, html { margin: 0; overflow: hidden; font-family: 'Fredoka', sans-serif; background: #87CEEB; touch-action: none; }
 
-/* 启动页 */
-#lobby {
+/* 动态天空背景 */
+#sky-gradient {
+    position: absolute; inset: 0; z-index: -2;
+    background: linear-gradient(180deg, #89f7fe 0%, #66a6ff 100%);
+}
+
+/* 大厅 */
+#lobby-screen {
     position: fixed; inset: 0; z-index: 100;
-    background: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%);
+    background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(10px);
     display: flex; flex-direction: column; align-items: center; justify-content: center;
 }
-.header h1 { color: #6c5ce7; font-size: 40px; margin: 0; }
-.category-grid {
-    display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-top: 30px;
-    max-height: 60vh; overflow-y: auto; padding: 10px;
-}
-button {
-    padding: 20px 30px; border: none; border-radius: 20px;
-    background: var(--c); color: white; font-size: 20px; font-weight: bold;
-    box-shadow: 0 5px 0 rgba(0,0,0,0.1); cursor: pointer;
-}
-button:active { transform: scale(0.95); box-shadow: none; }
+.logo-area h1 { color: #0984e3; font-size: 48px; margin: 0; text-shadow: 2px 2px white; }
+.logo-area p { color: #74b9ff; letter-spacing: 2px; }
 
-#status-log { margin-top: 20px; color: #888; font-size: 14px; }
+/* 成长树 */
+.tree-container { margin: 20px 0; text-align: center; }
+#magic-tree { font-size: 80px; animation: grow 2s infinite alternate; }
+@keyframes grow { from { transform: scale(1); } to { transform: scale(1.1); } }
+.tree-stats { font-size: 14px; color: #555; background: #fff; padding: 5px 15px; border-radius: 20px; margin-top: 10px; }
+
+/* 关卡横向滚动条 */
+.level-scroller {
+    display: flex; gap: 15px; overflow-x: auto; padding: 20px; width: 90%; max-width: 600px;
+    background: rgba(255,255,255,0.5); border-radius: 20px;
+    scrollbar-width: none; /* Hide scrollbar */
+}
+.level-scroller button {
+    flex: 0 0 100px; height: 120px; border: none; border-radius: 20px;
+    background: white; border-bottom: 5px solid var(--theme);
+    font-size: 18px; font-weight: bold; color: #555; cursor: pointer;
+    box-shadow: 0 5px 10px rgba(0,0,0,0.1); transition: transform 0.1s;
+}
+.level-scroller button:active { transform: scale(0.95); }
+
+#system-log { position: absolute; bottom: 20px; color: #888; font-size: 12px; }
 
 /* 游戏 UI */
 #game-ui { position: absolute; inset: 0; pointer-events: none; z-index: 10; display: none; }
-.top-info { display: flex; justify-content: space-between; padding: 20px; }
-.score-pill { font-size: 30px; color: #ffeaa7; font-weight: 900; text-shadow: 1px 1px 0 #000; }
-.quit-btn { pointer-events: auto; padding: 8px 15px; border-radius: 10px; border: none; background: #ff7675; color: white; }
+.hud-header { display: flex; justify-content: space-between; align-items: center; padding: 20px; }
+.score-badge { font-size: 32px; color: #fdcb6e; font-weight: 900; text-shadow: 2px 2px 0 #d63031; }
+.combo-badge { font-size: 24px; color: #ff7675; font-weight: bold; transform: rotate(-5deg); }
+.quit-btn { pointer-events: auto; padding: 8px 15px; background: #ff7675; color: white; border: none; border-radius: 10px; }
 
-/* 学习卡片 */
-#card-modal {
-    position: absolute; inset: 0; background: rgba(0,0,0,0.5);
+/* 学习弹窗 */
+#study-modal {
+    position: absolute; inset: 0; background: rgba(0,0,0,0.6);
     display: flex; align-items: center; justify-content: center;
-    opacity: 0; transition: opacity 0.3s; pointer-events: none;
+    opacity: 0; pointer-events: none; transition: opacity 0.3s;
 }
-#card-modal.active { opacity: 1; }
-.card-inner {
-    background: white; width: 280px; padding: 20px; border-radius: 30px;
-    text-align: center; border: 6px solid #74b9ff;
-    transform: scale(0.8); transition: transform 0.4s;
+#study-modal.active { opacity: 1; pointer-events: auto; }
+.modal-card {
+    background: white; width: 300px; padding: 30px; border-radius: 40px; text-align: center;
+    border: 8px solid #a29bfe; transform: scale(0.8); transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
-#card-modal.active .card-inner { transform: scale(1); }
-#c-icon { font-size: 80px; }
-#c-word { font-size: 40px; color: #333; margin: 5px 0; }
-#c-cn { font-size: 24px; color: #0984e3; }
+#study-modal.active .modal-card { transform: scale(1); }
 
-/* 关键 iOS 修复：视频流样式 */
-#ios-video {
-    position: absolute; top: 0; left: 0; 
-    width: 1px; height: 1px; opacity: 0; 
-    pointer-events: none; z-index: -1;
+#card-icon { font-size: 100px; filter: drop-shadow(0 5px 10px rgba(0,0,0,0.1)); }
+#card-en { font-size: 40px; margin: 10px 0 0; color: #2d3436; }
+#card-pron { font-size: 18px; color: #aaa; margin-bottom: 5px; }
+#card-cn { font-size: 24px; color: #0984e3; margin-bottom: 20px; }
+
+.mic-area { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+#btn-mic { 
+    width: 60px; height: 60px; border-radius: 50%; border: none; 
+    background: #00cec9; font-size: 30px; color: white; cursor: pointer;
+    box-shadow: 0 5px 0 #00b894; animation: pulse 2s infinite;
+}
+#btn-skip { background: transparent; border: none; color: #999; text-decoration: underline; cursor: pointer; }
+
+/* 视频流 (iOS 修复关键：位置偏离但不隐藏) */
+#input-video {
+    position: absolute; top: -9999px; left: -9999px;
+    width: 640px; height: 480px;
 }
 
 /* 调试雷达 */
-#radar {
+#radar-canvas {
     position: absolute; bottom: 10px; right: 10px;
-    background: rgba(0,0,0,0.5); border-radius: 50%; border: 2px solid white;
-    z-index: 5;
+    background: rgba(0,0,0,0.5); border: 2px solid white; border-radius: 10px;
+    transform: scaleX(-1);
 }
+
+/* 浮动文字特效 */
+.float-text {
+    position: absolute; font-weight: bold; pointer-events: none;
+    animation: floatUp 1s forwards;
+    text-shadow: 2px 2px 0 #000;
+}
+@keyframes floatUp { from { transform: translateY(0) scale(1); opacity: 1; } to { transform: translateY(-80px) scale(1.5); opacity: 0; } }
+@keyframes pulse { 0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(0, 206, 201, 0.7); } 70% { transform: scale(1.1); box-shadow: 0 0 0 10px rgba(0, 206, 201, 0); } 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(0, 206, 201, 0); } }
