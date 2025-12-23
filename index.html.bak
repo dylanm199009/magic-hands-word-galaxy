@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Magic Garden V30 (CPU Core)</title>
+    <title>Magic Garden V31 (Final Visuals)</title>
     
-    <!-- 1. 基础库 (Three.js + GSAP) -->
+    <!-- 1. 基础库 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
 
@@ -16,11 +16,13 @@
         body, html { 
             margin: 0; padding: 0; width: 100%; height: 100%; 
             overflow: hidden; font-family: 'Fredoka', sans-serif; 
-            background: #222; touch-action: none; user-select: none;
+            background: #87CEEB; /* 默认天蓝，防止加载时黑屏 */
+            touch-action: none; user-select: none;
         }
 
+        /* 动态天空 (最底层) */
         #sky-gradient {
-            position: fixed; inset: 0; z-index: -2;
+            position: fixed; inset: 0; z-index: -10; /* 确保在最下层 */
             background: linear-gradient(180deg, #a18cd1 0%, #fbc2eb 100%);
         }
 
@@ -32,7 +34,7 @@
             pointer-events: none;
         }
 
-        /* 1. 大厅 (PC/手机适配) */
+        /* 1. 大厅 */
         #lobby-screen {
             position: fixed; inset: 0; z-index: 100;
             background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px);
@@ -44,7 +46,7 @@
         #magic-tree { font-size: clamp(50px, 10vw, 80px); display: block; animation: grow 2s infinite alternate; }
         @keyframes grow { from {transform: scale(1);} to {transform: scale(1.1);} }
 
-        /* 关卡列表 (自适应网格) */
+        /* 关卡网格 */
         .level-grid {
             display: grid; 
             grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); 
@@ -62,9 +64,6 @@
         }
         .lvl-btn:active { transform: scale(0.95); }
 
-        #status-msg { margin-top: 20px; color: #888; font-size: 14px; animation: blink 1s infinite; }
-        @keyframes blink { 50% { opacity: 0.5; } }
-
         /* 2. 游戏 HUD */
         #game-ui { position: fixed; inset: 0; pointer-events: none; z-index: 10; display: none; }
         .top-bar { 
@@ -74,7 +73,7 @@
         .score-box { font-size: 32px; color: #fdcb6e; font-weight: 900; text-shadow: 2px 2px 0 #d63031; }
         .home-btn { pointer-events: auto; padding: 8px 15px; background: #ff7675; border: none; border-radius: 10px; color: white; font-weight: bold; cursor: pointer; }
 
-        /* 3. 学习卡片 (麦克风绝对居中) */
+        /* 3. 学习卡片 */
         #card-modal {
             position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 30;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -96,13 +95,13 @@
         }
         #mic-btn {
             width: 70px; height: 70px; border-radius: 50%; border: none; background: #00cec9;
-            font-size: 30px; color: white; cursor: pointer; display: none; /* 初始隐藏 */
+            font-size: 30px; color: white; cursor: pointer; display: none;
             box-shadow: 0 0 0 0 rgba(0, 206, 201, 0.7); animation: pulse 1.5s infinite;
             justify-content: center; align-items: center; display: flex;
         }
         @keyframes pulse { 70% { box-shadow: 0 0 0 15px rgba(0, 206, 201, 0); } }
 
-        /* 4. 摄像头预览 (必须可见，但可以移到角落) */
+        /* 4. 摄像头预览 (保持可见) */
         #cam-container {
             position: fixed; bottom: 10px; right: 10px; width: 140px; height: 105px;
             background: #000; border: 2px solid white; border-radius: 10px; z-index: 50;
@@ -126,18 +125,19 @@
             100% { transform: translate(-50%, -150px) scale(1.2); opacity: 0; }
         }
 
+        /* 3D Canvas (z-index 0, 必须在背景之上，但在UI之下) */
         #webgl-canvas { position: fixed; inset: 0; z-index: 0; }
     </style>
 </head>
 <body>
-    <div id="debug-bar">初始化 V30 CPU内核...</div>
-    <div id="sky-gradient"></div>
+    <div id="debug-bar">初始化 AI (CPU Core)...</div>
+    <div id="sky-gradient"></div> <!-- 漂亮的背景 -->
 
     <!-- 大厅 -->
     <div id="lobby-screen">
         <div class="logo">
             <h1>🌸 奇幻花园</h1>
-            <p>V30 稳定畅玩版</p>
+            <p>V31 视觉盛开版</p>
         </div>
         <div class="tree-box">
             <div id="magic-tree">🌳</div>
@@ -153,7 +153,7 @@
             <button class="lvl-btn" onclick="window.startGame('vehicles')" style="--c:#636e72">🚗<br>交通</button>
             <button class="lvl-btn" onclick="window.startGame('action')" style="--c:#e17055">🏃<br>动作</button>
         </div>
-        <div id="status-msg">点击分类启动相机...</div>
+        <div style="margin-top:20px; color:#888; font-size:12px;">点击关卡 -> 允许相机 -> 开始</div>
     </div>
 
     <!-- HUD -->
@@ -170,12 +170,10 @@
                 <div id="c-icon">🍎</div>
                 <h2 id="c-word">APPLE</h2>
                 <h3 style="color:#0984e3; margin:0;" id="c-cn">苹果</h3>
-                
-                <div class="mic-area">
-                    <p id="mic-hint" style="color:#888;">🔊 朗读中...</p>
-                    <button id="mic-btn" onclick="window.startSpeechRec()">🎙️</button>
-                    <button onclick="window.closeCard()" style="background:none; border:none; color:#999; margin-top:15px; text-decoration:underline; cursor:pointer;">跳过</button>
-                </div>
+                <p id="mic-hint" style="color:#888;">🔊 朗读中...</p>
+                <button id="mic-btn" onclick="window.startSpeechRec()">🎙️</button>
+                <br>
+                <button onclick="window.closeCard()" style="background:none; border:none; color:#999; margin-top:15px; text-decoration:underline; cursor:pointer;">跳过</button>
             </div>
         </div>
     </div>
@@ -188,14 +186,12 @@
 
     <canvas id="webgl-canvas"></canvas>
 
-    <!-- 核心逻辑：Module加载新版MediaPipe -->
     <script type="module">
         import { FilesetResolver, HandLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/+esm";
 
         // --- 0. 全局变量 ---
         window.THREE = THREE; 
         let handLandmarker = undefined;
-        let isVideoPlaying = false;
         let lastVideoTime = -1;
         let running = false;
         
@@ -218,8 +214,9 @@
         let balloons = [];
         let handTarget = new THREE.Vector3(0,0,0);
         let currentWordData = null;
+        let lastSpawnTime = 0; // 气球生成计时
 
-        // --- 1. 初始化新版 MediaPipe (CPU Delegate) ---
+        // --- 1. AI 初始化 (CPU) ---
         async function initHandLandmarker() {
             document.getElementById('debug-bar').innerText = "加载 AI 模型...";
             try {
@@ -229,18 +226,17 @@
                 handLandmarker = await HandLandmarker.createFromOptions(vision, {
                     baseOptions: {
                         modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
-                        delegate: "CPU" // 强制 CPU 解决兼容性
+                        delegate: "CPU" // 强制CPU兼容
                     },
                     runningMode: "VIDEO",
                     numHands: 1,
-                    minHandDetectionConfidence: 0.3, // 低阈值更灵敏
+                    minHandDetectionConfidence: 0.3,
                     minHandPresenceConfidence: 0.3,
                     minTrackingConfidence: 0.3
                 });
-                document.getElementById('debug-bar').innerText = "AI 就绪 | 等待相机";
+                document.getElementById('debug-bar').innerText = "AI 就绪 | 待机";
             } catch (error) {
-                console.error(error);
-                document.getElementById('debug-bar').innerText = "AI 失败: " + error.message;
+                document.getElementById('debug-bar').innerText = "AI 错误: " + error;
             }
         }
         initHandLandmarker();
@@ -248,8 +244,12 @@
         // --- 2. 3D 场景 ---
         const canvas = document.getElementById('webgl-canvas');
         const scene = new THREE.Scene();
+        // 关键：设置背景透明，否则遮挡 CSS 背景
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+        
+        // 关键：确保清除颜色是透明的
+        renderer.setClearColor(0x000000, 0); 
         
         function resize() {
             camera.aspect = window.innerWidth / window.innerHeight;
@@ -261,12 +261,12 @@
         resize();
         camera.position.z = 18;
 
-        scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+        scene.add(new THREE.AmbientLight(0xffffff, 0.8));
         const dl = new THREE.DirectionalLight(0xffffff, 0.8);
         dl.position.set(5, 10, 5);
         scene.add(dl);
 
-        // 主角 Avatar
+        // Avatar
         const avatar = new THREE.Group();
         const body = new THREE.Mesh(new THREE.SphereGeometry(1.2, 32, 32), new THREE.MeshPhongMaterial({color:0xffffff}));
         avatar.add(body);
@@ -278,7 +278,7 @@
         avatar.add(halo);
         scene.add(avatar);
 
-        // --- 3. 气球系统 (彩虹/金色/特效) ---
+        // --- 3. 气球系统 (修复：基于时间的生成) ---
         function createTex(emoji) {
             const cvs = document.createElement('canvas'); cvs.width = 256; cvs.height = 256;
             const ctx = cvs.getContext('2d');
@@ -288,13 +288,13 @@
         }
 
         function spawnBalloon() {
-            if (isPaused) return;
-            const item = currentPool[Math.floor(Math.random() * currentPool.length)];
+            if (isPaused || currentPool.length === 0) return;
             
+            const item = currentPool[Math.floor(Math.random() * currentPool.length)];
             const r = Math.random();
             let type = 'normal';
-            if(r > 0.85) type = 'rainbow'; // 15%
-            else if(r > 0.65) type = 'gold'; // 20%
+            if(r > 0.85) type = 'rainbow'; 
+            else if(r > 0.65) type = 'gold'; 
 
             const group = new THREE.Group();
             let color = item.c;
@@ -303,7 +303,7 @@
 
             const mat = new THREE.MeshPhongMaterial({
                 color: color, transparent: true, opacity: 0.9, 
-                emissive: color, emissiveIntensity: 0.4
+                emissive: color, emissiveIntensity: 0.5 // 增强发光，防止看起来太暗
             });
             const sphere = new THREE.Mesh(new THREE.SphereGeometry(1.8, 32, 32), mat);
             group.add(sphere);
@@ -313,7 +313,8 @@
             sprite.scale.set(2, 2, 1);
             group.add(sprite);
             
-            const xSpawn = (camera.aspect * camera.position.z) + 5; 
+            // 确保出生点在屏幕外
+            const xSpawn = (camera.aspect * camera.position.z) + 8; 
             group.position.set(xSpawn, (Math.random()-0.5)*12, 0);
             
             group.userData = { word: item, speed: 0.1 + Math.random()*0.05, type: type };
@@ -330,60 +331,45 @@
                 const mat = new THREE.MeshBasicMaterial({color:c});
                 const p = new THREE.Mesh(geo, mat);
                 p.position.copy(pos);
-                p.rotation.set(Math.random()*3, Math.random()*3, 0);
                 scene.add(p);
-                
-                const dest = {
-                    x: pos.x + (Math.random()-0.5) * 12,
-                    y: pos.y + (Math.random()-0.5) * 12,
-                    z: pos.z + (Math.random()-0.5) * 5
-                };
-                
-                gsap.to(p.position, { x:dest.x, y:dest.y, z:dest.z, duration: 1, ease: "power2.out" });
+                gsap.to(p.position, { 
+                    x:pos.x+(Math.random()-0.5)*12, y:pos.y+(Math.random()-0.5)*12, z:pos.z+(Math.random()-0.5)*5, 
+                    duration: 1, ease: "power2.out" 
+                });
                 gsap.to(p.scale, { x:0, y:0, z:0, duration: 1, onComplete: ()=>scene.remove(p) });
             }
         }
 
-        // --- 4. 游戏循环 (Detect & Render) ---
+        // --- 4. 循环逻辑 (Loop) ---
         const videoElement = document.getElementById('input-video');
         const radarCtx = document.getElementById('radar-canvas').getContext('2d');
         const radarCanvas = document.getElementById('radar-canvas');
 
-        async function detectLoop() {
-            if (!running || videoElement.paused || videoElement.ended) {
-                if(running) requestAnimationFrame(detectLoop);
-                return;
-            }
+        async function loop(timestamp) {
+            if (!running) return;
 
-            // 1. AI 检测
-            if (handLandmarker && videoElement.currentTime !== lastVideoTime) {
+            // 1. AI (每帧检测)
+            if (handLandmarker && videoElement.currentTime !== lastVideoTime && !videoElement.paused) {
                 lastVideoTime = videoElement.currentTime;
                 try {
-                    const results = handLandmarker.detectForVideo(videoElement, performance.now());
-                    
+                    const results = handLandmarker.detectForVideo(videoElement, timestamp);
                     radarCtx.clearRect(0,0,radarCanvas.width,radarCanvas.height);
                     
                     if (results.landmarks && results.landmarks.length > 0) {
                         const landmarks = results.landmarks[0];
-                        const index = landmarks[8]; 
+                        const index = landmarks[8];
                         const thumb = landmarks[4];
 
-                        // 绘制绿点
-                        radarCtx.fillStyle = '#0f0';
-                        radarCtx.beginPath();
+                        radarCtx.fillStyle = '#0f0'; radarCtx.beginPath();
                         radarCtx.arc((1-index.x)*radarCanvas.width, index.y*radarCanvas.height, 8, 0, Math.PI*2);
                         radarCtx.fill();
 
-                        // 坐标映射
                         const rangeX = (camera.aspect * camera.position.z); 
                         const x = (0.5 - index.x) * (rangeX * 2.8); 
                         const y = -(index.y - 0.5) * 35;
                         handTarget.set(x, y, 0);
 
-                        // 捏合检测
-                        const dist = Math.hypot(index.x - thumb.x, index.y - thumb.y);
-                        isGrabbing = dist < 0.05;
-                        
+                        isGrabbing = Math.hypot(index.x - thumb.x, index.y - thumb.y) < 0.05;
                         document.getElementById('debug-bar').innerText = "✅ 追踪中";
                     } else {
                         document.getElementById('debug-bar').innerText = "👀 请举手";
@@ -391,25 +377,28 @@
                 } catch(e) {}
             }
 
-            // 2. 动画渲染
-            const time = Date.now() * 0.001;
+            // 2. 气球生成 (使用时间戳，修复 setInterval 失效问题)
+            if (!isPaused && timestamp - lastSpawnTime > 1800) {
+                spawnBalloon();
+                lastSpawnTime = timestamp;
+            }
+
+            // 3. 动画
             avatar.position.lerp(handTarget, 0.25);
             avatar.rotation.z = (avatar.position.x - handTarget.x) * -0.15;
             
+            const s = isGrabbing ? 0.8 : 1.0;
+            avatar.scale.setScalar(s);
+
             if(!isPaused) {
                 for(let i=balloons.length-1; i>=0; i--) {
                     const b = balloons[i];
                     b.position.x -= b.userData.speed;
-                    b.position.y += Math.sin(time*2 + i)*0.05;
+                    b.position.y += Math.sin(timestamp*0.002 + i)*0.05;
                     
-                    if(b.userData.type === 'rainbow') {
-                        b.children[0].material.color.setHSL((time * 0.5) % 1, 1, 0.5);
-                    }
+                    if(b.userData.type === 'rainbow') b.children[0].material.color.setHSL((timestamp*0.0005)%1, 1, 0.5);
 
-                    // 吸附
-                    if(isGrabbing && b.position.distanceTo(avatar.position) < 5) {
-                        b.position.lerp(avatar.position, 0.15);
-                    }
+                    if(isGrabbing && b.position.distanceTo(avatar.position) < 5) b.position.lerp(avatar.position, 0.15);
 
                     if(b.position.distanceTo(avatar.position) < 2.5) {
                         hit(b, i);
@@ -420,8 +409,7 @@
                 }
             }
             renderer.render(scene, camera);
-            
-            requestAnimationFrame(detectLoop);
+            requestAnimationFrame(loop);
         }
 
         function hit(obj, index) {
@@ -461,14 +449,13 @@
             setTimeout(()=>el.remove(), 1000);
         }
 
-        // --- 5. 语音跟读 (自动朗读修复) ---
+        // --- 5. 语音与卡片 ---
         const synth = window.speechSynthesis;
         let ttsTimer = null;
 
         function showCard(data) {
             isPaused = true;
             currentWordData = data;
-            
             document.getElementById('c-icon').innerText = data.i;
             document.getElementById('c-word').innerText = data.en;
             document.getElementById('c-cn').innerText = data.cn;
@@ -477,29 +464,19 @@
             document.getElementById('mic-hint').innerText = "🔊 朗读中...";
             document.getElementById('mic-btn').style.display = 'none';
             
-            // 确保取消之前的朗读
             synth.cancel();
-            
             const u = new SpeechSynthesisUtterance(data.en);
-            u.lang = 'en-US';
-            u.rate = 0.9;
+            u.lang = 'en-US'; u.rate = 0.9;
             
-            // 关键：定义结束后的回调
-            const onEnd = () => {
-                document.getElementById('mic-hint').innerText = "🎤 点击麦克风跟读";
+            const done = () => {
+                document.getElementById('mic-hint').innerText = "🎤 点击跟读";
                 document.getElementById('mic-btn').style.display = 'flex';
-                clearTimeout(ttsTimer); // 如果正常结束，清除超时
+                clearTimeout(ttsTimer);
             };
-            
-            u.onend = onEnd;
-            u.onerror = onEnd; // 出错也继续流程
+            u.onend = done;
+            ttsTimer = setTimeout(done, 1500); // 强制显示麦克风
 
-            // 立即朗读
             synth.speak(u);
-
-            // iOS 保底：如果 TTS 2秒还没回调，强制显示麦克风
-            clearTimeout(ttsTimer);
-            ttsTimer = setTimeout(onEnd, 2000);
         }
 
         window.startSpeechRec = () => {
@@ -540,19 +517,21 @@
 
         // --- 6. 摄像头启动 ---
         async function startCamera() {
-            if(!handLandmarker) { alert("AI模型还在加载，请稍等..."); return; }
+            if(!handLandmarker) { alert("AI模型正在加载，请稍候"); return; }
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
                 });
-                videoElement.srcObject = stream;
-                videoElement.onloadedmetadata = () => {
-                    videoElement.play();
-                    // 调整雷达尺寸匹配视频
-                    radarCanvas.width = videoElement.videoWidth;
-                    radarCanvas.height = videoElement.videoHeight;
+                const video = document.getElementById('input-video');
+                video.srcObject = stream;
+                video.onloadedmetadata = () => {
+                    video.play();
+                    // 适配 Radar Canvas
+                    document.getElementById('radar-canvas').width = video.videoWidth;
+                    document.getElementById('radar-canvas').height = video.videoHeight;
+                    
                     running = true;
-                    detectLoop(); // 启动循环
+                    requestAnimationFrame(loop);
                 };
             } catch(e) {
                 alert("相机错误: " + e.message);
@@ -575,18 +554,12 @@
             }
         }
 
-        // 启动函数 (挂载到window)
         window.startGame = (cat) => {
             currentPool = DB[cat];
             document.getElementById('lobby-screen').style.display = 'none';
             document.getElementById('game-ui').style.display = 'block';
-            audioCtx.resume(); // 解锁音频
-            // 预朗读一个空音，彻底解锁TTS
-            synth.speak(new SpeechSynthesisUtterance(''));
-            
+            audioCtx.resume();
             startCamera();
-            animate();
-            setInterval(spawnBalloon, 1800);
         };
 
         window.addEventListener('resize', resize);
