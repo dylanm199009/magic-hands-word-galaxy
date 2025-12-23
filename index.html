@@ -3,155 +3,119 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Magic Garden V21 (Camera Fix)</title>
+    <title>Magic Garden V22 (Final Polish)</title>
     
-    <!-- 1. 核心算法库 (CDN) -->
+    <!-- 核心库 -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
 
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;700&display=swap');
 
-        /* 全屏适配基础 */
-        body, html { 
-            margin: 0; padding: 0; width: 100%; height: 100%; 
-            overflow: hidden; /* 禁止滚动 */
-            font-family: 'Fredoka', sans-serif; 
-            background: #87CEEB; 
-            touch-action: none; /* 禁止手机下拉刷新 */
-        }
+        body, html { margin: 0; overflow: hidden; font-family: 'Fredoka', sans-serif; background: #87CEEB; touch-action: none; }
 
-        /* 动态背景 */
         #sky-gradient {
             position: fixed; inset: 0; z-index: -2;
-            background: linear-gradient(180deg, #89f7fe 0%, #66a6ff 100%);
+            background: linear-gradient(180deg, #84fab0 0%, #8fd3f4 100%);
         }
 
-        /* 错误提示条 */
-        #error-bar {
-            position: fixed; top: 0; left: 0; width: 100%; 
-            background: rgba(231, 76, 60, 0.9); color: white; 
-            text-align: center; padding: 10px; z-index: 99999; 
-            display: none; font-size: 14px;
-        }
-
-        /* 1. 启动大厅 (居中适配) */
+        /* 1. 大厅 */
         #lobby-screen {
             position: fixed; inset: 0; z-index: 100;
-            background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(20px);
+            background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px);
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            padding: 20px; text-align: center;
         }
-        .logo h1 { color: #0984e3; font-size: clamp(40px, 8vw, 60px); margin: 0; text-shadow: 3px 3px white; }
-        .logo p { color: #74b9ff; font-size: 18px; margin-bottom: 20px; }
-
-        /* 成长树 */
-        .tree-box { margin: 20px 0; }
-        #magic-tree { font-size: 80px; display: block; animation: sway 3s infinite ease-in-out alternate; }
-        @keyframes sway { from { transform: rotate(-5deg); } to { transform: rotate(5deg); } }
-        .tree-info { background: white; padding: 5px 15px; border-radius: 20px; color: #555; font-size: 14px; border: 1px solid #ddd; margin-top: 10px;}
-
-        /* 关卡选择 (响应式网格) */
+        .logo h1 { color: #6c5ce7; font-size: 50px; margin: 0; text-shadow: 3px 3px white; }
+        
         .level-grid {
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); 
-            gap: 15px; width: 100%; max-width: 600px; max-height: 40vh; 
-            overflow-y: auto; padding: 10px;
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 30px;
+            padding: 10px; max-height: 50vh; overflow-y: auto;
         }
         .lvl-btn {
-            aspect-ratio: 1; border: none; border-radius: 20px;
+            width: 100px; height: 100px; border: none; border-radius: 20px;
             background: white; border-bottom: 5px solid var(--c);
-            font-size: 16px; font-weight: bold; color: #555; cursor: pointer;
-            box-shadow: 0 5px 10px rgba(0,0,0,0.1);
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            font-size: 18px; font-weight: bold; color: #555; cursor: pointer;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1); transition: transform 0.1s;
         }
-        .lvl-btn:active { transform: scale(0.95); border-bottom-width: 2px; transform: translateY(3px); }
+        .lvl-btn:active { transform: scale(0.9); }
 
-        #system-log { position: absolute; bottom: 20px; color: #999; font-size: 12px; }
+        #status-msg { margin-top: 20px; color: #888; font-size: 14px; }
 
         /* 2. 游戏 HUD */
         #game-ui { position: fixed; inset: 0; pointer-events: none; z-index: 10; display: none; }
         .top-bar { 
-            position: absolute; top: 0; left: 0; width: 100%; 
-            display: flex; justify-content: space-between; align-items: center; 
-            padding: 20px; box-sizing: border-box;
+            position: absolute; top: 0; left: 0; width: 100%; padding: 20px; 
+            display: flex; justify-content: space-between; box-sizing: border-box; 
         }
-        .score { font-size: 32px; color: #fdcb6e; font-weight: 900; text-shadow: 2px 2px 0 #d63031; }
-        .combo { font-size: 24px; color: #ff7675; font-weight: bold; opacity: 0; transform: rotate(-10deg); transition: 0.3s; }
-        .btn-home { pointer-events: auto; padding: 10px 20px; background: #ff7675; color: white; border: none; border-radius: 15px; font-weight: bold; }
+        .score-box { font-size: 32px; color: #fdcb6e; font-weight: 900; text-shadow: 2px 2px 0 #d63031; }
+        .home-btn { pointer-events: auto; padding: 10px 20px; background: #ff7675; border: none; border-radius: 15px; color: white; font-weight: bold; }
 
-        /* 学习卡片 */
+        /* 3. 特效层 (关键修复：z-index要高) */
+        #vfx-layer { position: fixed; inset: 0; pointer-events: none; z-index: 20; overflow: hidden; }
+        
+        /* 浮动文字动画 */
+        .float-text {
+            position: absolute; font-weight: 900; text-shadow: 2px 2px 0 #000;
+            animation: floatPop 1s forwards; pointer-events: none;
+        }
+        @keyframes floatPop {
+            0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+            20% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+            100% { transform: translate(-50%, -150px) scale(1); opacity: 0; }
+        }
+
+        /* 4. 学习卡片 */
         #card-modal {
-            position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+            position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 30;
             display: flex; align-items: center; justify-content: center;
             opacity: 0; pointer-events: none; transition: 0.3s;
         }
         #card-modal.active { opacity: 1; pointer-events: auto; }
-        .card-body {
-            background: white; width: 85%; max-width: 320px; padding: 30px; border-radius: 40px; 
-            text-align: center; border: 8px solid #a29bfe; transform: scale(0.8); transition: 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        .card-inner {
+            background: white; width: 300px; padding: 30px; border-radius: 40px; text-align: center;
+            border: 8px solid #a29bfe; transform: scale(0.8); transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
-        #card-modal.active .card-body { transform: scale(1); }
-        .card-icon { font-size: 100px; display: block; margin-bottom: 10px; }
-        .card-word { font-size: 40px; margin: 0; color: #2d3436; }
-        .card-cn { font-size: 24px; color: #0984e3; margin-bottom: 20px; }
+        #card-modal.active .card-inner { transform: scale(1); }
+        #c-icon { font-size: 100px; }
+        #c-word { font-size: 40px; margin: 10px 0; color: #2d3436; }
         
-        .mic-box { display: flex; flex-direction: column; align-items: center; gap: 15px; }
-        #btn-mic {
-            width: 70px; height: 70px; border-radius: 50%; border: none;
-            background: #00cec9; color: white; font-size: 30px; cursor: pointer;
-            box-shadow: 0 6px 0 #00b894; animation: pulse 1.5s infinite;
-            display: flex; align-items: center; justify-content: center;
+        .mic-btn {
+            width: 60px; height: 60px; border-radius: 50%; border: none; background: #00cec9;
+            font-size: 30px; color: white; margin-top: 10px; cursor: pointer;
+            box-shadow: 0 0 0 0 rgba(0, 206, 201, 0.7); animation: pulse 1.5s infinite;
         }
-        #btn-skip { background: none; border: none; color: #999; text-decoration: underline; padding: 10px; }
+        @keyframes pulse { 70% { box-shadow: 0 0 0 15px rgba(0, 206, 201, 0); } 100% { box-shadow: 0 0 0 0 rgba(0, 206, 201, 0); } }
 
-        /* 3. 摄像头预览 (重要：让用户看到自己) */
-        #camera-preview {
-            position: fixed; bottom: 20px; right: 20px; 
-            width: 120px; height: 160px; 
-            background: #000; border: 4px solid white; border-radius: 15px;
-            overflow: hidden; z-index: 5; box-shadow: 0 10px 20px rgba(0,0,0,0.3);
-            pointer-events: none; /* 不挡操作 */
+        /* 5. 摄像头预览 (必须可见) */
+        #cam-preview {
+            position: fixed; bottom: 20px; right: 20px; width: 120px; height: 90px;
+            background: black; border: 3px solid white; border-radius: 10px; z-index: 5;
+            overflow: hidden;
         }
-        /* 真实的 Video 元素，必须可见 */
-        #input-video {
-            width: 100%; height: 100%; object-fit: cover;
-            transform: scaleX(-1); /* 镜像 */
-        }
-        /* 调试雷达 */
+        #input-video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+        
+        /* 6. 调试雷达 */
         #radar-canvas {
-            position: absolute; bottom: 5px; right: 5px;
-            width: 40px; height: 30px; background: rgba(0,255,0,0.2);
-            z-index: 6; border-radius: 5px;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 6; transform: scaleX(-1);
         }
 
-        /* 浮动特效 */
-        .float-fx { position: absolute; font-weight: bold; pointer-events: none; animation: floatUp 1s forwards; z-index: 20; text-shadow: 2px 2px 0 #000; }
-        @keyframes floatUp { from { transform: translateY(0) scale(1); opacity: 1; } to { transform: translateY(-100px) scale(1.5); opacity: 0; } }
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
-        
-        /* 3D Canvas */
-        #webgl-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; }
+        #webgl-canvas { position: fixed; inset: 0; z-index: 0; }
     </style>
 </head>
 <body>
-    <div id="error-bar"></div>
     <div id="sky-gradient"></div>
 
-    <!-- 1. 启动大厅 -->
+    <!-- 启动页 -->
     <div id="lobby-screen">
         <div class="logo">
             <h1>🌸 奇幻花园</h1>
-            <p>V21 适配增强版</p>
+            <p>V22 灵敏触控版</p>
         </div>
         
-        <div class="tree-box">
-            <div id="magic-tree">🌱</div>
-            <div class="tree-info">等级: <span id="lvl">1</span> | 积分: <span id="pts">0</span></div>
-        </div>
-
-        <p style="margin-bottom:10px; color:#666;">请选择关卡以启动相机：</p>
         <div class="level-grid">
             <button class="lvl-btn" onclick="startGame('animals')" style="--c:#ff7675">🦁<br>动物</button>
             <button class="lvl-btn" onclick="startGame('fruits')" style="--c:#fdcb6e">🍎<br>水果</button>
@@ -160,119 +124,91 @@
             <button class="lvl-btn" onclick="startGame('body')" style="--c:#55efc4">👀<br>身体</button>
             <button class="lvl-btn" onclick="startGame('nature')" style="--c:#00b894">🌳<br>自然</button>
         </div>
-
-        <div id="system-log">系统就绪</div>
+        
+        <div id="status-msg">点击关卡以启动摄像头...</div>
     </div>
 
-    <!-- 2. 游戏界面 -->
+    <!-- 游戏 UI -->
     <div id="game-ui">
         <div class="top-bar">
-            <div class="score">✨ <span id="game-score">0</span></div>
-            <div class="combo" id="combo-txt">Combo!</div>
-            <button class="btn-home" onclick="location.reload()">🏠</button>
+            <div class="score-box">✨ <span id="score">0</span></div>
+            <button class="home-btn" onclick="location.reload()">退出</button>
         </div>
+        
+        <!-- 特效层 -->
+        <div id="vfx-layer"></div>
 
         <!-- 学习弹窗 -->
         <div id="card-modal">
-            <div class="card-body">
-                <div class="card-icon" id="c-icon">🍎</div>
-                <h2 class="card-word" id="c-en">APPLE</h2>
-                <p style="color:#aaa" id="c-pron">/sound/</p>
-                <h3 class="card-cn" id="c-cn">苹果</h3>
-                
-                <div class="mic-box">
-                    <div id="mic-hint">🔊 朗读中...</div>
-                    <button id="btn-mic" onclick="startSpeechRec()">🎙️</button>
-                    <button id="btn-skip" onclick="closeCard()">跳过</button>
-                </div>
+            <div class="card-inner">
+                <div id="c-icon">🍎</div>
+                <h2 id="c-word">APPLE</h2>
+                <h3 style="color:#0984e3; margin:0;" id="c-cn">苹果</h3>
+                <p id="mic-hint" style="color:#888; margin-top:10px;">🔊 朗读中...</p>
+                <button class="mic-btn" onclick="startSpeechRec()">🎙️</button>
+                <br>
+                <button onclick="closeCard()" style="background:none; border:none; color:#999; margin-top:10px; text-decoration:underline;">跳过</button>
             </div>
         </div>
-        
-        <div id="vfx-layer"></div>
     </div>
 
-    <!-- 3. 摄像头预览 (让用户确认相机已开启) -->
-    <div id="camera-preview">
-        <!-- 视频元素：必须可见，才能保证流正常 -->
+    <!-- 摄像头小窗 -->
+    <div id="cam-preview">
         <video id="input-video" playsinline webkit-playsinline muted autoplay></video>
         <canvas id="radar-canvas" width="120" height="90"></canvas>
     </div>
 
-    <!-- 4. 主画布 -->
+    <!-- 3D 场景 -->
     <canvas id="webgl-canvas"></canvas>
 
-    <!-- 脚本逻辑 -->
     <script>
-        // --- 0. 全局错误处理 ---
-        window.onerror = function(msg, url, line) {
-            const el = document.getElementById('error-bar');
-            el.style.display = 'block';
-            el.innerText = `❌ 出错了: ${msg} (Line: ${line})`;
-        };
+        // --- 0. 基础设置 ---
+        if (typeof THREE === 'undefined') alert("核心组件加载失败，请刷新");
 
-        // --- 1. 词库数据 ---
         const DB = {
-            animals: [ {en:'LION',cn:'狮子',i:'🦁',c:0xffa502},{en:'CAT',cn:'猫咪',i:'🐱',c:0xff6b6b},{en:'DOG',cn:'小狗',i:'🐶',c:0x54a0ff},{en:'PANDA',cn:'熊猫',i:'🐼',c:0x2f3542},{en:'RABBIT',cn:'兔子',i:'🐰',c:0xffffff} ],
-            fruits: [ {en:'APPLE',cn:'苹果',i:'🍎',c:0xff4757},{en:'BANANA',cn:'香蕉',i:'🍌',c:0xffeaa7},{en:'GRAPE',cn:'葡萄',i:'🍇',c:0xa29bfe},{en:'PEACH',cn:'桃子',i:'🍑',c:0xfdcb6e} ],
-            colors: [ {en:'RED',cn:'红色',i:'🔴',c:0xff0000},{en:'BLUE',cn:'蓝色',i:'🔵',c:0x0000ff},{en:'GREEN',cn:'绿色',i:'🟢',c:0x00ff00},{en:'YELLOW',cn:'黄色',i:'🟡',c:0xffff00} ],
-            numbers: [ {en:'ONE',cn:'一',i:'1️⃣',c:0x74b9ff},{en:'TWO',cn:'二',i:'2️⃣',c:0x0984e3},{en:'THREE',cn:'三',i:'3️⃣',c:0x6c5ce7},{en:'FIVE',cn:'五',i:'5️⃣',c:0x00cec9} ],
-            body: [ {en:'EYE',cn:'眼睛',i:'👁️',c:0xffffff},{en:'HAND',cn:'手',i:'🖐️',c:0xffcccc},{en:'NOSE',cn:'鼻子',i:'👃',c:0xf5cd79} ],
-            nature: [ {en:'SUN',cn:'太阳',i:'☀️',c:0xffdd59},{en:'MOON',cn:'月亮',i:'🌙',c:0xf39c12},{en:'TREE',cn:'树',i:'🌳',c:0x2ecc71} ]
+            animals: [{en:'LION',cn:'狮子',i:'🦁',c:0xffa502},{en:'CAT',cn:'猫咪',i:'🐱',c:0xff6b6b},{en:'DOG',cn:'小狗',i:'🐶',c:0x54a0ff},{en:'PANDA',cn:'熊猫',i:'🐼',c:0x2f3542},{en:'RABBIT',cn:'兔子',i:'🐰',c:0xffffff}],
+            fruits: [{en:'APPLE',cn:'苹果',i:'🍎',c:0xff4757},{en:'BANANA',cn:'香蕉',i:'🍌',c:0xffeaa7},{en:'GRAPE',cn:'葡萄',i:'🍇',c:0xa29bfe},{en:'PEACH',cn:'桃子',i:'🍑',c:0xfdcb6e}],
+            colors: [{en:'RED',cn:'红色',i:'🔴',c:0xff0000},{en:'BLUE',cn:'蓝色',i:'🔵',c:0x0000ff},{en:'GREEN',cn:'绿色',i:'🟢',c:0x00ff00},{en:'YELLOW',cn:'黄色',i:'🟡',c:0xffff00}],
+            numbers: [{en:'ONE',cn:'一',i:'1️⃣',c:0x74b9ff},{en:'TWO',cn:'二',i:'2️⃣',c:0x0984e3},{en:'THREE',cn:'三',i:'3️⃣',c:0x6c5ce7},{en:'TEN',cn:'十',i:'🔟',c:0xff7675}],
+            body: [{en:'EYE',cn:'眼睛',i:'👁️',c:0xffffff},{en:'HAND',cn:'手',i:'🖐️',c:0xffcccc},{en:'NOSE',cn:'鼻子',i:'👃',c:0xf5cd79}],
+            nature: [{en:'SUN',cn:'太阳',i:'☀️',c:0xffdd59},{en:'MOON',cn:'月亮',i:'🌙',c:0xf39c12},{en:'TREE',cn:'树',i:'🌳',c:0x2ecc71}]
         };
 
-        // 状态变量
         let currentPool = [];
         let score = 0;
-        let combo = 0;
-        let level = 1;
         let isPaused = false;
-        let isGrabbing = false;
-        let currentWordData = null;
         let balloons = [];
-        let spawnInterval = null;
+        let currentWordData = null;
 
-        // --- 2. 核心 3D 场景 (Three.js) ---
+        // --- 1. 3D 场景 ---
         const canvas = document.getElementById('webgl-canvas');
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
-        
-        function resizeEngine() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        }
-        window.addEventListener('resize', resizeEngine);
-        resizeEngine();
-        
+        renderer.setSize(window.innerWidth, window.innerHeight);
         camera.position.z = 18;
 
-        // 灯光
         scene.add(new THREE.AmbientLight(0xffffff, 0.7));
         const dl = new THREE.DirectionalLight(0xffffff, 0.8);
         dl.position.set(5, 10, 5);
         scene.add(dl);
 
-        // 主角 Avatar
+        // 主角：大眼萌宠
         const avatar = new THREE.Group();
-        const body = new THREE.Mesh(new THREE.SphereGeometry(1.2), new THREE.MeshPhongMaterial({color:0xffffff}));
+        const body = new THREE.Mesh(new THREE.SphereGeometry(1.2, 32, 32), new THREE.MeshPhongMaterial({color:0xffffff}));
         avatar.add(body);
-        // 眼睛
         const eyeMat = new THREE.MeshBasicMaterial({color:0x000000});
-        const el = new THREE.Mesh(new THREE.SphereGeometry(0.2), eyeMat); el.position.set(-0.4,0.3,1); avatar.add(el);
-        const er = new THREE.Mesh(new THREE.SphereGeometry(0.2), eyeMat); er.position.set(0.4,0.3,1); avatar.add(er);
+        const el = new THREE.Mesh(new THREE.SphereGeometry(0.25), eyeMat); el.position.set(-0.4,0.3,1); avatar.add(el);
+        const er = new THREE.Mesh(new THREE.SphereGeometry(0.25), eyeMat); er.position.set(0.4,0.3,1); avatar.add(er);
         // 手
-        const handGeo = new THREE.SphereGeometry(0.3);
+        const handGeo = new THREE.SphereGeometry(0.35);
         const handMat = new THREE.MeshBasicMaterial({color:0xffaaaa});
-        const hl = new THREE.Mesh(handGeo, handMat); hl.position.set(-1.2,-0.5,0); avatar.add(hl);
-        const hr = new THREE.Mesh(handGeo, handMat); hr.position.set(1.2,-0.5,0); avatar.add(hr);
-        // 光环
-        const halo = new THREE.Mesh(new THREE.TorusGeometry(1.6,0.1,16,100), new THREE.MeshBasicMaterial({color:0xffff00}));
-        halo.rotation.x = Math.PI/2;
-        avatar.add(halo);
+        const hl = new THREE.Mesh(handGeo, handMat); hl.position.set(-1.4,-0.5,0); avatar.add(hl);
+        const hr = new THREE.Mesh(handGeo, handMat); hr.position.set(1.4,-0.5,0); avatar.add(hr);
+        
         scene.add(avatar);
 
-        // --- 3. 气球与粒子 ---
+        // --- 2. 气球与特效 ---
         function createTex(emoji) {
             const cvs = document.createElement('canvas'); cvs.width = 256; cvs.height = 256;
             const ctx = cvs.getContext('2d');
@@ -282,7 +218,7 @@
         }
 
         function spawnBalloon() {
-            if (isPaused) return;
+            if(isPaused) return;
             const item = currentPool[Math.floor(Math.random() * currentPool.length)];
             const isRare = Math.random() > 0.9;
             
@@ -294,67 +230,61 @@
             });
             const sphere = new THREE.Mesh(new THREE.SphereGeometry(1.8, 32, 32), mat);
             group.add(sphere);
-            
             const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: createTex(isRare ? '🎁' : item.i) }));
             sprite.scale.set(2, 2, 1);
             group.add(sprite);
             
-            // 响应式出生点：根据屏幕宽高比调整
-            const xSpawn = (camera.aspect * camera.position.z) + 5; 
-            group.position.set(xSpawn, (Math.random()-0.5)*12, 0);
-            
+            group.position.set(22, (Math.random()-0.5)*12, 0);
             group.userData = { word: item, speed: 0.1 + Math.random()*0.05, isRare: isRare };
             
             scene.add(group);
             balloons.push(group);
         }
 
-        function spawnParticles(pos, color) {
-            for(let i=0; i<20; i++) {
-                const p = new THREE.Mesh(new THREE.BoxGeometry(0.4,0.4,0.4), new THREE.MeshBasicMaterial({color:color}));
+        // 粒子爆炸特效
+        function spawnExplosion(pos, color) {
+            for(let i=0; i<30; i++) {
+                const geo = Math.random() > 0.5 ? new THREE.BoxGeometry(0.4,0.4,0.4) : new THREE.SphereGeometry(0.2);
+                const mat = new THREE.MeshBasicMaterial({color:color});
+                const p = new THREE.Mesh(geo, mat);
                 p.position.copy(pos);
+                p.rotation.set(Math.random()*3, Math.random()*3, 0);
                 scene.add(p);
-                gsap.to(p.position, {
-                    x:pos.x+(Math.random()-0.5)*8, 
-                    y:pos.y+(Math.random()-0.5)*8, 
-                    duration:1
-                });
-                gsap.to(p.scale, {x:0, y:0, duration:1, onComplete:()=>scene.remove(p)});
+                
+                // 炸开动画
+                const dest = {
+                    x: pos.x + (Math.random()-0.5) * 10,
+                    y: pos.y + (Math.random()-0.5) * 10,
+                    z: pos.z + (Math.random()-0.5) * 5
+                };
+                
+                gsap.to(p.position, { x:dest.x, y:dest.y, z:dest.z, duration: 0.8, ease: "power2.out" });
+                gsap.to(p.scale, { x:0, y:0, z:0, duration: 0.8, onComplete: ()=>scene.remove(p) });
             }
         }
 
-        // --- 4. 游戏循环 ---
+        // --- 3. 游戏逻辑 ---
         let handTarget = new THREE.Vector3(0,0,0);
 
         function animate() {
             requestAnimationFrame(animate);
             
-            // 主角移动
-            avatar.position.lerp(handTarget, 0.15);
-            avatar.rotation.z = (avatar.position.x - handTarget.x) * -0.1;
+            // 灵敏度优化：Lerp系数提高到 0.25 (更跟手)
+            avatar.position.lerp(handTarget, 0.25);
+            avatar.rotation.z = (avatar.position.x - handTarget.x) * -0.15;
             
-            // 捏合动画
-            const s = isGrabbing ? 0.6 : 1;
-            hl.scale.setScalar(s); hr.scale.setScalar(s);
-
-            if (!isPaused) {
-                for (let i = balloons.length - 1; i >= 0; i--) {
+            if(!isPaused) {
+                for(let i=balloons.length-1; i>=0; i--) {
                     const b = balloons[i];
                     b.position.x -= b.userData.speed;
-                    b.position.y += Math.sin(Date.now()*0.002+i)*0.05;
+                    b.position.y += Math.sin(Date.now()*0.002 + i)*0.05;
                     
-                    // 吸附
-                    if(isGrabbing && b.position.distanceTo(avatar.position) < 5) {
-                        b.position.lerp(avatar.position, 0.15);
-                    }
-
-                    // 碰撞
-                    if (b.position.distanceTo(avatar.position) < 2.5) {
+                    // 碰撞检测 (2.5半径)
+                    if(b.position.distanceTo(avatar.position) < 2.5) {
                         hit(b, i);
-                    } else if (b.position.x < -30) {
+                    } else if(b.position.x < -25) {
                         scene.remove(b);
                         balloons.splice(i, 1);
-                        combo = 0; document.getElementById('combo-txt').style.opacity = 0;
                     }
                 }
             }
@@ -363,53 +293,65 @@
 
         function hit(obj, index) {
             const data = obj.userData.word;
+            const pos = obj.position.clone();
+            
+            // 移除气球
             scene.remove(obj);
             balloons.splice(index, 1);
             
-            spawnParticles(obj.position, obj.userData.isRare ? 0xffd700 : data.c);
+            // 1. 播放粒子特效
+            spawnExplosion(pos, obj.userData.isRare ? 0xffd700 : data.c);
+            
+            // 2. 播放音效
             playSynth('pop');
             
-            const base = obj.userData.isRare ? 50 : 10;
-            score += base;
-            combo++;
-            
-            // UI 更新
-            document.getElementById('game-score').innerText = score;
-            document.getElementById('pts').innerText = score;
-            if (combo >= 2) {
-                const el = document.getElementById('combo-txt');
-                el.innerText = `Combo x${combo}`;
-                el.style.opacity = 1;
-                gsap.fromTo(el, {scale:1.5}, {scale:1, duration:0.3});
-            }
-            showFloatText(`+${base}`, obj.position);
+            // 3. 浮动文字特效
+            const pts = obj.userData.isRare ? 50 : 10;
+            score += pts;
+            document.getElementById('score').innerText = score;
+            showFloatText(`+${pts}`, pos, obj.userData.isRare ? '#ffd700' : '#fff');
 
+            // 4. 显示卡片
             showCard(data);
         }
 
-        function showFloatText(txt, pos) {
+        // 屏幕浮动文字 (2D Overlay)
+        function showFloatText(txt, pos3d, color) {
             const el = document.createElement('div');
-            el.className = 'float-fx'; el.innerText = txt;
-            el.style.color = '#fff';
-            // 3D 坐标转 2D
-            const vec = pos.clone();
+            el.className = 'float-text';
+            el.innerText = txt;
+            el.style.color = color;
+            el.style.fontSize = '50px';
+            
+            // 3D转2D坐标
+            const vec = pos3d.clone();
             vec.project(camera);
             const x = (vec.x * .5 + .5) * window.innerWidth;
             const y = (-(vec.y * .5) + .5) * window.innerHeight;
-            el.style.left = x + 'px'; el.style.top = y + 'px';
-            el.style.fontSize = '40px';
+            
+            el.style.left = x + 'px';
+            el.style.top = y + 'px';
+            
             document.getElementById('vfx-layer').appendChild(el);
             setTimeout(()=>el.remove(), 1000);
         }
 
-        // --- 5. 语音与卡片 ---
+        // --- 4. 语音与卡片 ---
         const synth = window.speechSynthesis;
+        let currentUtterance = null;
+
         function speak(text, cb) {
             synth.cancel();
             const u = new SpeechSynthesisUtterance(text);
             u.lang = 'en-US';
             u.rate = 0.9;
             u.onend = cb;
+            // 尝试获取英文声音
+            const voices = synth.getVoices();
+            const v = voices.find(val => val.lang.includes('en'));
+            if(v) u.voice = v;
+            
+            currentUtterance = u; // 防回收
             synth.speak(u);
         }
 
@@ -417,29 +359,30 @@
             isPaused = true;
             currentWordData = data;
             
+            const modal = document.getElementById('card-modal');
             document.getElementById('c-icon').innerText = data.i;
-            document.getElementById('c-en').innerText = data.en;
+            document.getElementById('c-word').innerText = data.en;
             document.getElementById('c-cn').innerText = data.cn;
-            document.getElementById('card-modal').classList.add('active');
             
-            document.getElementById('mic-hint').innerText = "🔊 正在朗读...";
-            document.getElementById('btn-mic').style.display = 'none';
+            modal.classList.add('active');
+            document.getElementById('mic-hint').innerText = "🔊 朗读中...";
             
             speak(data.en, () => {
-                document.getElementById('mic-hint').innerText = "🎤 请跟读";
-                document.getElementById('btn-mic').style.display = 'flex';
+                document.getElementById('mic-hint').innerText = "🎤 点击麦克风跟读";
+                // 提示动画
+                gsap.fromTo(".mic-btn", {scale:1}, {scale:1.2, yoyo:true, repeat:3, duration:0.3});
             });
         }
 
         window.startSpeechRec = () => {
-            // iOS 兼容：模拟识别
+            // iOS 兼容模式：模拟成功
             const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
             
-            if (isIOS || !('webkitSpeechRecognition' in window)) {
-                document.getElementById('mic-hint').innerText = "🌟 iOS 模拟通过!";
-                successFB();
+            if(isIOS || !('webkitSpeechRecognition' in window)) {
+                document.getElementById('mic-hint').innerText = "🌟 完美 (iOS模拟)";
+                onSuccess();
             } else {
-                const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
+                const Rec = window.webkitSpeechRecognition;
                 const r = new Rec();
                 r.lang = 'en-US';
                 r.start();
@@ -447,21 +390,20 @@
                 
                 r.onresult = (e) => {
                     const t = e.results[0][0].transcript.toLowerCase();
-                    if (t.includes(currentWordData.en.toLowerCase()) || t.length > 0) {
+                    if(t.includes(currentWordData.en.toLowerCase())) {
                         document.getElementById('mic-hint').innerText = "🌟 Perfect!";
-                        successFB();
+                        onSuccess();
                     } else {
                         document.getElementById('mic-hint').innerText = "😅 再试一次";
                     }
                 };
-                r.onerror = () => { successFB(); }; // 容错
             }
         };
 
-        function successFB() {
+        function onSuccess() {
             playSynth('win');
-            spawnParticles(avatar.position, 0xffff00);
-            score += 20; document.getElementById('game-score').innerText = score;
+            spawnExplosion(avatar.position, 0xffff00); // 庆祝烟花
+            score += 20; document.getElementById('score').innerText = score;
             setTimeout(window.closeCard, 1500);
         }
 
@@ -470,83 +412,7 @@
             isPaused = false;
         };
 
-        // --- 6. 摄像头与手势 (核心修复) ---
-        const videoElement = document.getElementById('input-video');
-        const radarCtx = document.getElementById('radar-canvas').getContext('2d');
-
-        // 启动摄像头：原生 getUserMedia
-        async function initCamera() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { 
-                        facingMode: 'user', 
-                        width: { ideal: 640 }, 
-                        height: { ideal: 480 } 
-                    }, 
-                    audio: false 
-                });
-                videoElement.srcObject = stream;
-                // 等待元数据加载，确保尺寸正确
-                await new Promise(r => videoElement.onloadedmetadata = r);
-                videoElement.play();
-                document.getElementById('system-log').innerText = "✅ 相机已启动，请举手";
-                
-                // 启动 MediaPipe
-                startMediaPipe();
-            } catch (err) {
-                document.getElementById('error-bar').style.display = 'block';
-                document.getElementById('error-bar').innerText = "❌ 无法访问摄像头: " + err.message;
-            }
-        }
-
-        function startMediaPipe() {
-            const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
-            hands.setOptions({ maxNumHands: 1, minDetectionConfidence: 0.5 });
-            
-            hands.onResults(onHandsResults);
-
-            async function cameraLoop() {
-                // 仅当视频正在播放且有数据时发送
-                if (videoElement.readyState >= 2) {
-                    await hands.send({image: videoElement});
-                }
-                requestAnimationFrame(cameraLoop);
-            }
-            cameraLoop();
-        }
-
-        function onHandsResults(results) {
-            radarCtx.clearRect(0,0,120,90);
-            
-            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-                const landmarks = results.multiHandLandmarks[0];
-                const index = landmarks[8];
-                const thumb = landmarks[4];
-
-                // 1. 坐标映射：将 0~1 的视频坐标映射到 3D 场景坐标
-                // x 轴镜像翻转：(1 - x)
-                // 范围系数：30 (根据 camera Z=18 调整)
-                const rangeX = (camera.aspect * camera.position.z); 
-                const rangeY = 15;
-
-                const x = (0.5 - index.x) * (rangeX * 2.5); // 放大灵敏度
-                const y = -(index.y - 0.5) * (rangeY * 2.5);
-                
-                handTarget.set(x, y, 0);
-
-                // 2. 捏合检测
-                const dist = Math.hypot(index.x - thumb.x, index.y - thumb.y);
-                isGrabbing = dist < 0.05;
-
-                // 3. 雷达绘制
-                radarCtx.fillStyle = isGrabbing ? '#ff0000' : '#00ff00';
-                radarCtx.beginPath();
-                radarCtx.arc(index.x*120, index.y*90, 5, 0, Math.PI*2);
-                radarCtx.fill();
-            }
-        }
-
-        // --- 7. 音频合成器 (无需文件) ---
+        // --- 5. 音频合成器 (无需文件) ---
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         function playSynth(type) {
             if(audioCtx.state === 'suspended') audioCtx.resume();
@@ -564,32 +430,90 @@
                 osc.start(now); osc.stop(now + 0.1);
             } else if(type === 'win') {
                 osc.type = 'square';
-                osc.frequency.setValueAtTime(800, now);
-                osc.frequency.setValueAtTime(1200, now + 0.1);
+                osc.frequency.setValueAtTime(500, now);
+                osc.frequency.setValueAtTime(800, now + 0.1);
                 gain.gain.setValueAtTime(0.1, now);
                 gain.gain.linearRampToValueAtTime(0, now + 0.3);
                 osc.start(now); osc.stop(now + 0.3);
             }
         }
 
-        // --- 8. 启动游戏 ---
+        // --- 6. 手势识别 (核心修复：灵敏度) ---
+        const videoEl = document.getElementById('input-video');
+        const radarCtx = document.getElementById('radar-canvas').getContext('2d');
+
+        const hands = new window.Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
+        hands.setOptions({ maxNumHands: 1, minDetectionConfidence: 0.5 });
+
+        hands.onResults(res => {
+            radarCtx.clearRect(0,0,120,90);
+            
+            if (res.multiHandLandmarks && res.multiHandLandmarks.length > 0) {
+                const p = res.multiHandLandmarks[0][8]; // 食指
+                
+                // 1. 雷达反馈 (绿点)
+                radarCtx.fillStyle = '#0f0';
+                radarCtx.beginPath();
+                radarCtx.arc(p.x*120, p.y*90, 5, 0, Math.PI*2);
+                radarCtx.fill();
+
+                // 2. 坐标映射 (灵敏度极高)
+                // 解释：(0.5 - p.x) 是为了镜像翻转。
+                // * 50 是放大倍数，意味着手只需移动一点点，值就会变得很大。
+                // 这样就能覆盖 -25 到 +25 的 3D 空间。
+                const x = (0.5 - p.x) * 50; 
+                const y = -(p.y - 0.5) * 35;
+                
+                handTarget.set(x, y, 0);
+            }
+        });
+
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'user', width: 640, height: 480 }
+                });
+                videoEl.srcObject = stream;
+                videoEl.onloadedmetadata = () => {
+                    videoEl.play();
+                    loop(); // 开始识别循环
+                };
+            } catch(e) {
+                alert("摄像头未授权，无法游玩");
+            }
+        }
+
+        async function loop() {
+            if(!isPaused && videoEl.readyState >= 2) {
+                await hands.send({image: videoEl});
+            }
+            requestAnimationFrame(loop);
+        }
+
+        // --- 7. 启动 ---
         window.startGame = (cat) => {
             currentPool = DB[cat];
             document.getElementById('lobby-screen').style.display = 'none';
             document.getElementById('game-ui').style.display = 'block';
             
-            // 必须由用户手势触发音频上下文恢复
+            // 必须在点击时恢复音频
             audioCtx.resume();
             
-            // 启动相机
-            initCamera();
-            
-            // 启动游戏循环
+            startCamera();
             animate();
             setInterval(spawnBalloon, 1800);
             
-            speak("Ready, Go!");
+            speak("Ready!");
         };
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        
+        // 预加载声音列表
+        window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
     </script>
 </body>
 </html>
