@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Magic Garden V17 Final</title>
+    <title>Magic Garden V19 Ultimate</title>
     
-    <!-- 核心依赖 (CDN) -->
+    <!-- 核心库 (CDN 全局加载) -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
@@ -13,42 +13,45 @@
     <link rel="stylesheet" href="./style.css">
 </head>
 <body>
-    <!-- 背景层 -->
+    <!-- 动态背景 -->
     <div id="sky-gradient"></div>
 
     <!-- 1. 启动大厅 (包含成长树) -->
     <div id="lobby-screen">
         <div class="logo-area">
             <h1>🌸 奇幻花园</h1>
-            <p>Magic Garden English</p>
+            <p>V19 终极完整版</p>
         </div>
 
         <!-- 魔法成长树 -->
         <div class="tree-container">
-            <div id="magic-tree">🌳</div>
-            <div class="tree-stats">等级: <span id="user-lvl">1</span> | 总分: <span id="total-score">0</span></div>
+            <div id="magic-tree">🌱</div>
+            <div class="tree-stats">
+                等级: <span id="user-lvl">1</span> | 总分: <span id="total-score">0</span>
+            </div>
         </div>
 
-        <!-- 关卡选择 -->
+        <!-- 关卡滑块 -->
         <div class="level-scroller">
-            <button onclick="window.startGame('animals')" style="--theme:#ff6348">🦁<br>动物</button>
-            <button onclick="window.startGame('fruits')" style="--theme:#ff9f43">🍎<br>水果</button>
-            <button onclick="window.startGame('colors')" style="--theme:#70a1ff">🎨<br>颜色</button>
-            <button onclick="window.startGame('numbers')" style="--theme:#1dd1a1">🔢<br>数字</button>
-            <button onclick="window.startGame('body')" style="--theme:#feca57">👀<br>身体</button>
-            <button onclick="window.startGame('vehicles')" style="--theme:#6c5ce7">🚗<br>交通</button>
-            <button onclick="window.startGame('nature')" style="--theme:#00b894">🌳<br>自然</button>
-            <button onclick="window.startGame('action')" style="--theme:#e17055">🏃<br>动作</button>
+            <button onclick="startGame('animals')" style="--theme:#ff6348">🦁<br>动物</button>
+            <button onclick="startGame('fruits')" style="--theme:#ff9f43">🍎<br>水果</button>
+            <button onclick="startGame('colors')" style="--theme:#70a1ff">🎨<br>颜色</button>
+            <button onclick="startGame('numbers')" style="--theme:#1dd1a1">🔢<br>数字</button>
+            <button onclick="startGame('body')" style="--theme:#feca57">👀<br>身体</button>
+            <button onclick="startGame('vehicles')" style="--theme:#6c5ce7">🚗<br>交通</button>
+            <button onclick="startGame('nature')" style="--theme:#00b894">🌳<br>自然</button>
+            <button onclick="startGame('action')" style="--theme:#e17055">🏃<br>动作</button>
         </div>
 
-        <div id="system-log">⏳ 请选择关卡启动摄像头...</div>
+        <div id="system-log">⏳ 等待相机授权...</div>
     </div>
 
     <!-- 2. 游戏 HUD -->
     <div id="game-ui">
         <div class="hud-header">
             <div class="score-badge">✨ <span id="game-score">0</span></div>
-            <div class="combo-badge" id="combo-display" style="opacity:0">⭐ Combo!</div>
+            <!-- 连击特效 -->
+            <div class="combo-badge" id="combo-display">Combo x2!</div>
             <button class="quit-btn" onclick="location.reload()">🏠 回家</button>
         </div>
 
@@ -61,26 +64,31 @@
                 <h3 id="card-cn">苹果</h3>
                 
                 <div class="mic-area">
-                    <div id="mic-status">🎤 点击麦克风跟读</div>
-                    <button id="btn-mic" onclick="window.startSpeechRecognition()">🎙️</button>
-                    <button id="btn-skip" onclick="window.closeCard()">跳过</button>
+                    <div id="mic-status">🔊 正在朗读...</div>
+                    <!-- 麦克风按钮 -->
+                    <button id="btn-mic" onclick="startSpeechRec()">
+                        <div class="mic-icon">🎙️</div>
+                        <div class="mic-wave"></div>
+                    </button>
+                    <button id="btn-skip" onclick="closeCard()">跳过</button>
                 </div>
             </div>
         </div>
 
-        <!-- 浮动特效容器 -->
+        <!-- 浮动特效容器 (星星、加分) -->
         <div id="vfx-container"></div>
     </div>
 
-    <!-- 3. iOS 核心修复：视频流必须存在 -->
+    <!-- 3. 视频流 (iOS 修复：移出屏幕但可见) -->
     <video id="input-video" playsinline webkit-playsinline muted autoplay></video>
     
-    <!-- 4. 调试雷达 (确认手势) -->
+    <!-- 4. 调试雷达 -->
     <canvas id="radar-canvas" width="120" height="90"></canvas>
 
     <!-- 5. 主 3D 画布 -->
     <canvas id="webgl-canvas"></canvas>
 
-    <script type="module" src="./main.js"></script>
+    <!-- 逻辑脚本 (无 module，防止 crash) -->
+    <script src="./main.js"></script>
 </body>
 </html>
