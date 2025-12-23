@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Magic Garden V23 (Ultimate Fix)</title>
+    <title>Magic Garden V24 (Final Vision Fix)</title>
     
     <!-- 核心库 -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
@@ -11,16 +11,21 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
 
-    <link rel="stylesheet" href="./style.css">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&display=swap');
 
-        body, html { margin: 0; overflow: hidden; font-family: 'Fredoka', sans-serif; background: #222; }
+        body, html { margin: 0; overflow: hidden; font-family: 'Fredoka', sans-serif; background: #222; touch-action: none; }
 
         /* 全屏背景 */
         #sky-gradient {
             position: fixed; inset: 0; z-index: -2;
-            background: linear-gradient(180deg, #84fab0 0%, #8fd3f4 100%);
+            background: linear-gradient(180deg, #a18cd1 0%, #fbc2eb 100%);
+        }
+
+        /* 错误提示 */
+        #error-bar {
+            position: fixed; top: 0; left: 0; width: 100%; background: rgba(255,0,0,0.8);
+            color: white; padding: 5px; text-align: center; display: none; z-index: 99999;
         }
 
         /* 1. 大厅 */
@@ -29,17 +34,18 @@
             background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px);
             display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
-        .logo h1 { color: #6c5ce7; font-size: 50px; margin: 0; text-shadow: 2px 2px #fff; }
+        .logo h1 { color: #6c5ce7; font-size: 48px; margin: 0; text-shadow: 2px 2px #fff; }
         
+        /* 关卡网格 */
         .level-grid {
-            display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 30px;
-            padding: 10px; max-height: 50vh; overflow-y: auto; width: 90%; max-width: 600px;
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 20px;
+            padding: 10px; width: 90%; max-width: 600px; max-height: 50vh; overflow-y: auto;
         }
         .lvl-btn {
             aspect-ratio: 1; border: none; border-radius: 20px;
             background: white; border-bottom: 5px solid var(--c);
             font-size: 16px; font-weight: bold; color: #555; cursor: pointer;
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
             box-shadow: 0 5px 15px rgba(0,0,0,0.1);
         }
         .lvl-btn:active { transform: scale(0.95); }
@@ -59,7 +65,7 @@
         #vfx-layer { position: fixed; inset: 0; pointer-events: none; z-index: 20; }
         .float-text {
             position: absolute; font-weight: 900; text-shadow: 2px 2px 0 #000;
-            animation: floatPop 1s forwards; font-size: 40px;
+            animation: floatPop 1s forwards; font-size: 40px; pointer-events: none;
         }
         @keyframes floatPop {
             0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
@@ -83,34 +89,38 @@
         #c-word { font-size: 36px; margin: 5px 0; color: #2d3436; }
         #mic-btn {
             width: 60px; height: 60px; border-radius: 50%; border: none; background: #00cec9;
-            font-size: 30px; color: white; margin-top: 10px; cursor: pointer;
+            font-size: 30px; color: white; margin-top: 10px; cursor: pointer; display: none;
             box-shadow: 0 0 0 0 rgba(0, 206, 201, 0.7); animation: pulse 1.5s infinite;
         }
         @keyframes pulse { 70% { box-shadow: 0 0 0 15px rgba(0, 206, 201, 0); } }
 
-        /* 4. 摄像头调试窗口 (必须可见) */
+        /* 4. 摄像头预览 (关键修复：必须放在可见区域) */
         #cam-container {
-            position: fixed; bottom: 10px; right: 10px; width: 120px; height: 90px;
-            background: black; border: 2px solid white; border-radius: 10px; z-index: 5;
-            overflow: hidden;
+            position: fixed; bottom: 10px; right: 10px; width: 140px; height: 105px;
+            background: #000; border: 3px solid white; border-radius: 15px; z-index: 50;
+            overflow: hidden; box-shadow: 0 10px 20px rgba(0,0,0,0.3);
         }
-        #input-video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+        #input-video { 
+            width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); 
+            display: block; /* 确保显示 */
+        }
         #radar-canvas { 
             position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
-            transform: scaleX(-1); z-index: 6;
+            transform: scaleX(-1); z-index: 51;
         }
 
         #webgl-canvas { position: fixed; inset: 0; z-index: 0; }
     </style>
 </head>
 <body>
+    <div id="error-bar"></div>
     <div id="sky-gradient"></div>
 
-    <!-- 启动页 -->
+    <!-- 大厅 -->
     <div id="lobby-screen">
         <div class="logo">
             <h1>🌸 奇幻花园</h1>
-            <p>V23 彩虹终极版</p>
+            <p>V24 淘金版</p>
         </div>
         <div class="level-grid">
             <button class="lvl-btn" onclick="startGame('animals')" style="--c:#ff7675">🦁<br>动物</button>
@@ -122,7 +132,7 @@
             <button class="lvl-btn" onclick="startGame('vehicles')" style="--c:#636e72">🚗<br>交通</button>
             <button class="lvl-btn" onclick="startGame('action')" style="--c:#e17055">🏃<br>动作</button>
         </div>
-        <div id="status-msg">点击分类以启动摄像头...</div>
+        <div id="status-msg">点击关卡启动...</div>
     </div>
 
     <!-- 游戏 UI -->
@@ -145,75 +155,30 @@
         </div>
     </div>
 
-    <!-- 摄像头 & 调试 -->
+    <!-- 摄像头预览 (Video直接放在这里，保证可见性) -->
     <div id="cam-container">
         <video id="input-video" playsinline webkit-playsinline muted autoplay></video>
-        <canvas id="radar-canvas" width="120" height="90"></canvas>
+        <canvas id="radar-canvas" width="140" height="105"></canvas>
     </div>
 
     <canvas id="webgl-canvas"></canvas>
 
     <script>
-        // --- 0. 海量词库 (300+ 词条填充) ---
-        // 这里的列表已经大大扩充，确保不重复
+        // --- 0. 环境检测 ---
+        if (typeof THREE === 'undefined') document.getElementById('error-bar').style.display = 'block';
+
+        // --- 1. 海量词库 ---
         const DB = {
-            animals: [
-                {en:'LION',cn:'狮子',i:'🦁',c:0xffa502},{en:'TIGER',cn:'老虎',i:'🐯',c:0xff6348},{en:'CAT',cn:'猫咪',i:'🐱',c:0xff6b6b},
-                {en:'DOG',cn:'小狗',i:'🐶',c:0x54a0ff},{en:'PANDA',cn:'熊猫',i:'🐼',c:0x2f3542},{en:'RABBIT',cn:'兔子',i:'🐰',c:0xffffff},
-                {en:'PIG',cn:'小猪',i:'🐷',c:0xffcccc},{en:'BEAR',cn:'熊',i:'🐻',c:0x8d6e63},{en:'FROG',cn:'青蛙',i:'🐸',c:0x2ecc71},
-                {en:'KOALA',cn:'考拉',i:'🐨',c:0x95afc0},{en:'FOX',cn:'狐狸',i:'🦊',c:0xe17055},{en:'ZEBRA',cn:'斑马',i:'🦓',c:0x2d3436},
-                {en:'GIRAFFE',cn:'长颈鹿',i:'🦒',c:0xf1c40f},{en:'ELEPHANT',cn:'大象',i:'🐘',c:0xbdc3c7},{en:'MONKEY',cn:'猴子',i:'🐵',c:0xd35400},
-                {en:'MOUSE',cn:'老鼠',i:'🐭',c:0x95a5a6},{en:'COW',cn:'奶牛',i:'🐮',c:0xffffff},{en:'CHICKEN',cn:'鸡',i:'🐔',c:0xf1c40f},
-                {en:'DUCK',cn:'鸭子',i:'🦆',c:0xf1c40f},{en:'OWL',cn:'猫头鹰',i:'🦉',c:0x7f8c8d},{en:'WHALE',cn:'鲸鱼',i:'🐳',c:0x3498db},
-                {en:'DOLPHIN',cn:'海豚',i:'🐬',c:0x2980b9},{en:'FISH',cn:'鱼',i:'🐟',c:0x3498db},{en:'SHARK',cn:'鲨鱼',i:'🦈',c:0xbdc3c7},
-                {en:'OCTOPUS',cn:'章鱼',i:'🐙',c:0xe74c3c},{en:'CRAB',cn:'螃蟹',i:'🦀',c:0xc0392b},{en:'BUTTERFLY',cn:'蝴蝶',i:'🦋',c:0x9b59b6},
-                {en:'BEE',cn:'蜜蜂',i:'🐝',c:0xf1c40f},{en:'LADYBUG',cn:'瓢虫',i:'🐞',c:0xe74c3c},{en:'SNAKE',cn:'蛇',i:'🐍',c:0x27ae60}
-            ],
-            fruits: [
-                {en:'APPLE',cn:'苹果',i:'🍎',c:0xff4757},{en:'BANANA',cn:'香蕉',i:'🍌',c:0xffeaa7},{en:'GRAPE',cn:'葡萄',i:'🍇',c:0xa29bfe},
-                {en:'PEACH',cn:'桃子',i:'🍑',c:0xfdcb6e},{en:'MELON',cn:'甜瓜',i:'🍈',c:0x55efc4},{en:'CHERRY',cn:'樱桃',i:'🍒',c:0xd63031},
-                {en:'LEMON',cn:'柠檬',i:'🍋',c:0xf1c40f},{en:'ORANGE',cn:'橙子',i:'🍊',c:0xe67e22},{en:'WATERMELON',cn:'西瓜',i:'🍉',c:0x2ecc71},
-                {en:'STRAWBERRY',cn:'草莓',i:'🍓',c:0xe84393},{en:'PINEAPPLE',cn:'菠萝',i:'🍍',c:0xf1c40f},{en:'MANGO',cn:'芒果',i:'🥭',c:0xf39c12},
-                {en:'KIWI',cn:'奇异果',i:'🥝',c:0x27ae60},{en:'AVOCADO',cn:'牛油果',i:'🥑',c:0x27ae60},{en:'COCONUT',cn:'椰子',i:'🥥',c:0xecf0f1},
-                {en:'BLUEBERRY',cn:'蓝莓',i:'🫐',c:0x8e44ad},{en:'PEAR',cn:'梨',i:'🍐',c:0xf1c40f},{en:'TOMATO',cn:'西红柿',i:'🍅',c:0xe74c3c}
-            ],
-            colors: [
-                {en:'RED',cn:'红色',i:'🔴',c:0xff0000},{en:'BLUE',cn:'蓝色',i:'🔵',c:0x0000ff},{en:'GREEN',cn:'绿色',i:'🟢',c:0x00ff00},
-                {en:'YELLOW',cn:'黄色',i:'🟡',c:0xffff00},{en:'PURPLE',cn:'紫色',i:'🟣',c:0x800080},{en:'ORANGE',cn:'橙色',i:'🟠',c:0xffa500},
-                {en:'BLACK',cn:'黑色',i:'⚫',c:0x000000},{en:'WHITE',cn:'白色',i:'⚪',c:0xffffff},{en:'BROWN',cn:'棕色',i:'🟤',c:0x795548},
-                {en:'PINK',cn:'粉色',i:'💗',c:0xffc0cb},{en:'GREY',cn:'灰色',i:'⬜',c:0x808080},{en:'GOLD',cn:'金色',i:'🌟',c:0xffd700}
-            ],
-            numbers: [
-                {en:'ONE',cn:'一',i:'1️⃣',c:0x74b9ff},{en:'TWO',cn:'二',i:'2️⃣',c:0x0984e3},{en:'THREE',cn:'三',i:'3️⃣',c:0x6c5ce7},
-                {en:'FOUR',cn:'四',i:'4️⃣',c:0xa29bfe},{en:'FIVE',cn:'五',i:'5️⃣',c:0x00cec9},{en:'SIX',cn:'六',i:'6️⃣',c:0xff7675},
-                {en:'SEVEN',cn:'七',i:'7️⃣',c:0xfdcb6e},{en:'EIGHT',cn:'八',i:'8️⃣',c:0x6a0572},{en:'NINE',cn:'九',i:'9️⃣',c:0xab352f},
-                {en:'TEN',cn:'十',i:'🔟',c:0x52b4bf},{en:'ZERO',cn:'零',i:'0️⃣',c:0x70a1ff},{en:'HUNDRED',cn:'百',i:'💯',c:0x4a4a4a}
-            ],
-            body: [
-                {en:'EYE',cn:'眼睛',i:'👁️',c:0xffffff},{en:'EAR',cn:'耳朵',i:'👂',c:0xf7d794},{en:'NOSE',cn:'鼻子',i:'👃',c:0xf5cd79},
-                {en:'MOUTH',cn:'嘴巴',i:'👄',c:0xff6b81},{en:'HAND',cn:'手',i:'🖐️',c:0xffcccc},{en:'FOOT',cn:'脚',i:'🦶',c:0xf7d794},
-                {en:'ARM',cn:'手臂',i:'💪',c:0xf7d794},{en:'LEG',cn:'腿',i:'🦵',c:0xf7d794},{en:'HEAD',cn:'头',i:'🗣️',c:0xf7d794},
-                {en:'HAIR',cn:'头发',i:'💇',c:0x2c3e50},{en:'TOOTH',cn:'牙齿',i:'🦷',c:0xffffff},{en:'TONGUE',cn:'舌头',i:'👅',c:0xe17055}
-            ],
-            vehicles: [
-                {en:'CAR',cn:'汽车',i:'🚗',c:0xe74c3c},{en:'BUS',cn:'巴士',i:'🚌',c:0xf1c40f},{en:'PLANE',cn:'飞机',i:'✈️',c:0x3498db},
-                {en:'SHIP',cn:'轮船',i:'🚢',c:0x34495e},{en:'BIKE',cn:'自行车',i:'🚲',c:0x2ecc71},{en:'ROCKET',cn:'火箭',i:'🚀',c:0x8e44ad},
-                {en:'TRAIN',cn:'火车',i:'🚂',c:0x2c3e50},{en:'TRUCK',cn:'卡车',i:'🚚',c:0x95a5a6},{en:'TAXI',cn:'出租车',i:'🚕',c:0xf1c40f}
-            ],
-            nature: [
-                {en:'SUN',cn:'太阳',i:'☀️',c:0xf1c40f},{en:'MOON',cn:'月亮',i:'🌙',c:0xf1c40f},{en:'STAR',cn:'星星',i:'⭐',c:0xf1c40f},
-                {en:'CLOUD',cn:'云',i:'☁️',c:0xffffff},{en:'RAIN',cn:'雨',i:'🌧️',c:0x3498db},{en:'SNOW',cn:'雪',i:'❄️',c:0xffffff},
-                {en:'TREE',cn:'树',i:'🌳',c:0x27ae60},{en:'FLOWER',cn:'花',i:'🌸',c:0xe84393},{en:'FIRE',cn:'火',i:'🔥',c:0xe74c3c},
-                {en:'WATER',cn:'水',i:'💧',c:0x3498db},{en:'MOUNTAIN',cn:'山',i:'⛰️',c:0x7f8c8d},{en:'OCEAN',cn:'大海',i:'🌊',c:0x2980b9}
-            ],
-            action: [
-                {en:'RUN',cn:'跑',i:'🏃',c:0xe74c3c},{en:'JUMP',cn:'跳',i:'🦘',c:0xf1c40f},{en:'SWIM',cn:'游泳',i:'🏊',c:0x3498db},
-                {en:'EAT',cn:'吃',i:'🍽️',c:0xe67e22},{en:'SLEEP',cn:'睡觉',i:'💤',c:0x34495e},{en:'DANCE',cn:'跳舞',i:'💃',c:0x9b59b6},
-                {en:'SING',cn:'唱歌',i:'🎤',c:0x2ecc71},{en:'READ',cn:'读',i:'📖',c:0x3498db},{en:'WRITE',cn:'写',i:'✍️',c:0x95a5a6}
-            ]
+            animals: [{en:'LION',cn:'狮子',i:'🦁',c:0xffa502},{en:'TIGER',cn:'老虎',i:'🐯',c:0xff6348},{en:'CAT',cn:'猫咪',i:'🐱',c:0xff6b6b},{en:'DOG',cn:'小狗',i:'🐶',c:0x54a0ff},{en:'PANDA',cn:'熊猫',i:'🐼',c:0x2f3542},{en:'RABBIT',cn:'兔子',i:'🐰',c:0xffffff},{en:'PIG',cn:'小猪',i:'🐷',c:0xffcccc},{en:'BEAR',cn:'熊',i:'🐻',c:0x8d6e63},{en:'FROG',cn:'青蛙',i:'🐸',c:0x2ecc71},{en:'KOALA',cn:'考拉',i:'🐨',c:0x95afc0},{en:'FOX',cn:'狐狸',i:'🦊',c:0xe17055},{en:'ZEBRA',cn:'斑马',i:'🦓',c:0x2d3436}],
+            fruits: [{en:'APPLE',cn:'苹果',i:'🍎',c:0xff4757},{en:'BANANA',cn:'香蕉',i:'🍌',c:0xffeaa7},{en:'GRAPE',cn:'葡萄',i:'🍇',c:0xa29bfe},{en:'PEACH',cn:'桃子',i:'🍑',c:0xfdcb6e},{en:'MELON',cn:'甜瓜',i:'🍈',c:0x55efc4},{en:'CHERRY',cn:'樱桃',i:'🍒',c:0xd63031},{en:'LEMON',cn:'柠檬',i:'🍋',c:0xf1c40f},{en:'ORANGE',cn:'橙子',i:'🍊',c:0xe67e22},{en:'WATERMELON',cn:'西瓜',i:'🍉',c:0x2ecc71},{en:'STRAWBERRY',cn:'草莓',i:'🍓',c:0xe84393}],
+            colors: [{en:'RED',cn:'红色',i:'🔴',c:0xff0000},{en:'BLUE',cn:'蓝色',i:'🔵',c:0x0000ff},{en:'GREEN',cn:'绿色',i:'🟢',c:0x00ff00},{en:'YELLOW',cn:'黄色',i:'🟡',c:0xffff00},{en:'PURPLE',cn:'紫色',i:'🟣',c:0x800080},{en:'ORANGE',cn:'橙色',i:'🟠',c:0xffa500},{en:'BLACK',cn:'黑色',i:'⚫',c:0x000000},{en:'WHITE',cn:'白色',i:'⚪',c:0xffffff}],
+            numbers: [{en:'ONE',cn:'一',i:'1️⃣',c:0x74b9ff},{en:'TWO',cn:'二',i:'2️⃣',c:0x0984e3},{en:'THREE',cn:'三',i:'3️⃣',c:0x6c5ce7},{en:'FOUR',cn:'四',i:'4️⃣',c:0xa29bfe},{en:'FIVE',cn:'五',i:'5️⃣',c:0x00cec9},{en:'SIX',cn:'六',i:'6️⃣',c:0xff7675},{en:'SEVEN',cn:'七',i:'7️⃣',c:0xfdcb6e},{en:'EIGHT',cn:'八',i:'8️⃣',c:0x6a0572},{en:'NINE',cn:'九',i:'9️⃣',c:0xab352f},{en:'TEN',cn:'十',i:'🔟',c:0x52b4bf}],
+            body: [{en:'EYE',cn:'眼睛',i:'👁️',c:0xffffff},{en:'EAR',cn:'耳朵',i:'👂',c:0xf7d794},{en:'NOSE',cn:'鼻子',i:'👃',c:0xf5cd79},{en:'MOUTH',cn:'嘴巴',i:'👄',c:0xff6b81},{en:'HAND',cn:'手',i:'🖐️',c:0xffcccc},{en:'FOOT',cn:'脚',i:'🦶',c:0xf7d794},{en:'ARM',cn:'手臂',i:'💪',c:0xf7d794},{en:'LEG',cn:'腿',i:'🦵',c:0xf7d794},{en:'HEAD',cn:'头',i:'🗣️',c:0xf7d794}],
+            vehicles: [{en:'CAR',cn:'汽车',i:'🚗',c:0xe74c3c},{en:'BUS',cn:'巴士',i:'🚌',c:0xf1c40f},{en:'PLANE',cn:'飞机',i:'✈️',c:0x3498db},{en:'SHIP',cn:'轮船',i:'🚢',c:0x34495e},{en:'BIKE',cn:'自行车',i:'🚲',c:0x2ecc71},{en:'ROCKET',cn:'火箭',i:'🚀',c:0x8e44ad},{en:'TRAIN',cn:'火车',i:'🚂',c:0x2c3e50},{en:'TRUCK',cn:'卡车',i:'🚚',c:0x95a5a6},{en:'TAXI',cn:'出租车',i:'🚕',c:0xf1c40f}],
+            nature: [{en:'SUN',cn:'太阳',i:'☀️',c:0xf1c40f},{en:'MOON',cn:'月亮',i:'🌙',c:0xf1c40f},{en:'STAR',cn:'星星',i:'⭐',c:0xf1c40f},{en:'CLOUD',cn:'云',i:'☁️',c:0xffffff},{en:'RAIN',cn:'雨',i:'🌧️',c:0x3498db},{en:'SNOW',cn:'雪',i:'❄️',c:0xffffff},{en:'TREE',cn:'树',i:'🌳',c:0x27ae60},{en:'FLOWER',cn:'花',i:'🌸',c:0xe84393},{en:'FIRE',cn:'火',i:'🔥',c:0xe74c3c}],
+            action: [{en:'RUN',cn:'跑',i:'🏃',c:0xe74c3c},{en:'JUMP',cn:'跳',i:'🦘',c:0xf1c40f},{en:'SWIM',cn:'游泳',i:'🏊',c:0x3498db},{en:'EAT',cn:'吃',i:'🍽️',c:0xe67e22},{en:'SLEEP',cn:'睡觉',i:'💤',c:0x34495e},{en:'DANCE',cn:'跳舞',i:'💃',c:0x9b59b6},{en:'SING',cn:'唱歌',i:'🎤',c:0x2ecc71},{en:'READ',cn:'读',i:'📖',c:0x3498db}]
         };
 
-        // --- 1. 全局状态 ---
         let currentPool = [];
         let score = 0;
         let isPaused = false;
@@ -237,14 +202,14 @@
         
         camera.position.z = 18;
 
-        scene.add(new THREE.AmbientLight(0xffffff, 0.7));
-        const dl = new THREE.DirectionalLight(0xffffff, 0.8);
+        scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+        const dl = new THREE.DirectionalLight(0xffffff, 0.7);
         dl.position.set(5, 10, 5);
         scene.add(dl);
 
         // 主角 Avatar
         const avatar = new THREE.Group();
-        const body = new THREE.Mesh(new THREE.SphereGeometry(1.2, 32, 32), new THREE.MeshPhongMaterial({color:0xffffff}));
+        const body = new THREE.Mesh(new THREE.SphereGeometry(1.2), new THREE.MeshPhongMaterial({color:0xffffff}));
         avatar.add(body);
         const eyeMat = new THREE.MeshBasicMaterial({color:0x000000});
         const el = new THREE.Mesh(new THREE.SphereGeometry(0.25), eyeMat); el.position.set(-0.4,0.3,1); avatar.add(el);
@@ -255,7 +220,7 @@
         avatar.add(halo);
         scene.add(avatar);
 
-        // --- 3. 气球与彩蛋逻辑 ---
+        // --- 3. 气球系统 (核心调整：概率) ---
         function createTex(emoji) {
             const cvs = document.createElement('canvas'); cvs.width = 256; cvs.height = 256;
             const ctx = cvs.getContext('2d');
@@ -265,19 +230,19 @@
         }
 
         function spawnBalloon() {
-            if(isPaused) return;
+            if (isPaused) return;
             const item = currentPool[Math.floor(Math.random() * currentPool.length)];
             
-            // 稀有度逻辑
+            // 概率调整
             const r = Math.random();
             let type = 'normal';
-            if(r > 0.95) type = 'rainbow'; // 5% 彩虹
-            else if(r > 0.85) type = 'gold'; // 10% 金色
+            if (r > 0.85) type = 'rainbow'; // 15% 彩虹 (Top 15%)
+            else if (r > 0.65) type = 'gold'; // 20% 金色 (0.65 - 0.85)
 
             const group = new THREE.Group();
             let color = item.c;
-            if(type === 'gold') color = 0xffd700;
-            if(type === 'rainbow') color = 0xffffff; 
+            if (type === 'gold') color = 0xffd700;
+            if (type === 'rainbow') color = 0xffffff;
 
             const mat = new THREE.MeshPhongMaterial({
                 color: color, 
@@ -292,7 +257,6 @@
             sprite.scale.set(2, 2, 1);
             group.add(sprite);
             
-            // 响应式出生点
             const xSpawn = (camera.aspect * camera.position.z) + 5; 
             group.position.set(xSpawn, (Math.random()-0.5)*12, 0);
             
@@ -302,15 +266,15 @@
             balloons.push(group);
         }
 
-        // 粒子爆炸
         function spawnExplosion(pos, color, type) {
-            const count = type === 'rainbow' ? 50 : 30;
+            const count = type === 'rainbow' ? 60 : 30; // 彩虹更多粒子
             for(let i=0; i<count; i++) {
                 const c = type === 'rainbow' ? Math.random()*0xffffff : color;
                 const geo = Math.random() > 0.5 ? new THREE.BoxGeometry(0.4,0.4,0.4) : new THREE.SphereGeometry(0.2);
                 const mat = new THREE.MeshBasicMaterial({color:c});
                 const p = new THREE.Mesh(geo, mat);
                 p.position.copy(pos);
+                p.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, 0);
                 scene.add(p);
                 
                 const dest = {
@@ -324,16 +288,13 @@
             }
         }
 
-        // --- 4. 动画循环 ---
+        // --- 4. 游戏循环 ---
         function animate() {
             requestAnimationFrame(animate);
             const time = Date.now() * 0.001;
             
-            // 主角移动 (极高灵敏度)
-            avatar.position.lerp(handTarget, 0.2); // 0.2 更跟手
+            avatar.position.lerp(handTarget, 0.25);
             avatar.rotation.z = (avatar.position.x - handTarget.x) * -0.15;
-            
-            // 光环特效
             halo.rotation.z -= 0.05;
 
             if(!isPaused) {
@@ -347,8 +308,7 @@
                         b.children[0].material.color.setHSL((time * 0.5) % 1, 1, 0.5);
                     }
 
-                    // 碰撞检测
-                    if(b.position.distanceTo(avatar.position) < 2.8) {
+                    if(b.position.distanceTo(avatar.position) < 2.5) {
                         hit(b, i);
                     } else if(b.position.x < -30) {
                         scene.remove(b);
@@ -367,19 +327,21 @@
             scene.remove(obj);
             balloons.splice(index, 1);
             
-            // 1. 特效
             spawnExplosion(pos, type === 'gold' ? 0xffd700 : data.c, type);
             
-            // 2. 音效
-            playSynth(type === 'rainbow' ? 'win' : 'pop');
-            
-            // 3. 计分
             let pts = 10;
             let txt = "+10";
             let color = "#fff";
             
-            if(type === 'gold') { pts = 50; txt = "+50 GOLD!"; color = "#ffd700"; }
-            if(type === 'rainbow') { pts = 100; txt = "RAINBOW!"; color = "#00ffff"; }
+            if(type === 'gold') { 
+                pts = 50; txt = "+50 💰"; color = "#ffd700"; 
+                playSynth('win');
+            } else if(type === 'rainbow') { 
+                pts = 100; txt = "RAINBOW!"; color = "#00ffff"; 
+                playSynth('win');
+            } else {
+                playSynth('pop');
+            }
             
             score += pts;
             document.getElementById('score').innerText = score;
@@ -392,9 +354,7 @@
             const el = document.createElement('div');
             el.className = 'float-text'; el.innerText = txt;
             el.style.color = color;
-            // 3D 转 2D
-            const vec = pos3d.clone();
-            vec.project(camera);
+            const vec = pos3d.clone().project(camera);
             const x = (vec.x * .5 + .5) * window.innerWidth;
             const y = (-(vec.y * .5) + .5) * window.innerHeight;
             el.style.left = x + 'px'; el.style.top = y + 'px';
@@ -402,27 +362,23 @@
             setTimeout(()=>el.remove(), 1000);
         }
 
-        // --- 5. 语音跟读 ---
+        // --- 5. 语音与卡片 ---
         const synth = window.speechSynthesis;
         
         function showCard(data) {
             isPaused = true;
             currentWordData = data;
-            
-            const modal = document.getElementById('card-modal');
             document.getElementById('c-icon').innerText = data.i;
             document.getElementById('c-word').innerText = data.en;
             document.getElementById('c-cn').innerText = data.cn;
+            document.getElementById('card-modal').classList.add('active');
             
-            modal.classList.add('active');
             document.getElementById('mic-hint').innerText = "🔊 正在朗读...";
-            document.getElementById('mic-btn').style.display = 'none'; // 先隐藏麦克风
+            document.getElementById('mic-btn').style.display = 'none';
             
-            // 朗读
             synth.cancel();
             const u = new SpeechSynthesisUtterance(data.en);
-            u.lang = 'en-US';
-            u.rate = 0.9;
+            u.lang = 'en-US'; u.rate = 0.9;
             u.onend = () => {
                 document.getElementById('mic-hint').innerText = "🎤 点击麦克风跟读";
                 document.getElementById('mic-btn').style.display = 'block';
@@ -435,21 +391,15 @@
             document.getElementById('mic-hint').innerText = "👂 正在听...";
             
             if(isIOS || !('webkitSpeechRecognition' in window)) {
-                // iOS 模拟
-                setTimeout(() => {
-                    document.getElementById('mic-hint').innerText = "🌟 完美!";
-                    onSuccess();
-                }, 1000);
+                setTimeout(() => { document.getElementById('mic-hint').innerText = "🌟 完美!"; onSuccess(); }, 1000);
             } else {
                 const Rec = window.webkitSpeechRecognition;
                 const r = new Rec();
-                r.lang = 'en-US';
-                r.start();
+                r.lang = 'en-US'; r.start();
                 r.onresult = (e) => {
                     const t = e.results[0][0].transcript.toLowerCase();
                     if(t.includes(currentWordData.en.toLowerCase())) {
-                        document.getElementById('mic-hint').innerText = "🌟 Perfect!";
-                        onSuccess();
+                        document.getElementById('mic-hint').innerText = "🌟 Perfect!"; onSuccess();
                     } else {
                         document.getElementById('mic-hint').innerText = "😅 再试一次";
                     }
@@ -459,9 +409,12 @@
 
         function onSuccess() {
             playSynth('win');
+            spawnExplosion(avatar.position, 0xffff00, 'rainbow');
             score += 20; document.getElementById('score').innerText = score;
-            spawnExplosion(avatar.position, 0xffff00, 'normal');
-            setTimeout(window.closeCard, 1500);
+            setTimeout(() => {
+                document.getElementById('card-modal').classList.remove('active');
+                isPaused = false;
+            }, 1500);
         }
 
         window.closeCard = () => {
@@ -469,86 +422,88 @@
             isPaused = false;
         };
 
-        // --- 6. 音频引擎 ---
+        // --- 6. 核心：摄像头与追踪 ---
+        const videoElement = document.getElementById('input-video');
+        const radarCtx = document.getElementById('radar-canvas').getContext('2d');
+        const hands = new window.Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
+        hands.setOptions({ maxNumHands: 1, minDetectionConfidence: 0.5 });
+
+        hands.onResults(results => {
+            // 绘制雷达上的绿点
+            radarCtx.clearRect(0,0,120,90);
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                const p = results.multiHandLandmarks[0][8]; // 食指
+                
+                radarCtx.fillStyle = '#0f0';
+                radarCtx.beginPath();
+                radarCtx.arc(p.x*120, p.y*90, 5, 0, Math.PI*2);
+                radarCtx.fill();
+
+                // 坐标映射
+                const rangeX = (camera.aspect * camera.position.z); 
+                const x = (0.5 - p.x) * (rangeX * 2.5); 
+                const y = -(p.y - 0.5) * 35;
+                handTarget.set(x, y, 0);
+            }
+        });
+
+        // 原生 getUserMedia
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
+                });
+                videoElement.srcObject = stream;
+                videoElement.onloadedmetadata = () => {
+                    videoElement.play();
+                    loop();
+                };
+            } catch(e) {
+                document.getElementById('error-bar').style.display = 'block';
+                document.getElementById('error-bar').innerText = "相机启动失败: " + e.message;
+            }
+        }
+
+        async function loop() {
+            if(!isPaused && videoElement.readyState >= 2) {
+                await hands.send({image: videoElement});
+            }
+            requestAnimationFrame(loop);
+        }
+
+        // --- 7. 音频 ---
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         function playSynth(type) {
             if(audioCtx.state === 'suspended') audioCtx.resume();
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             osc.connect(gain); gain.connect(audioCtx.destination);
-            
             const now = audioCtx.currentTime;
+            
             if(type === 'pop') {
                 osc.type = 'triangle';
                 osc.frequency.setValueAtTime(600, now);
-                osc.frequency.exponentialRampToValueAtTime(100, now+0.1);
+                osc.frequency.exponentialRampToValueAtTime(100, now + 0.1);
                 gain.gain.setValueAtTime(0.3, now);
-                gain.gain.linearRampToValueAtTime(0, now+0.1);
-                osc.start(now); osc.stop(now+0.1);
+                gain.gain.linearRampToValueAtTime(0, now + 0.1);
+                osc.start(now); osc.stop(now + 0.1);
             } else if(type === 'win') {
                 osc.type = 'square';
                 osc.frequency.setValueAtTime(500, now);
-                osc.frequency.setValueAtTime(1000, now+0.1);
+                osc.frequency.setValueAtTime(800, now + 0.1);
                 gain.gain.setValueAtTime(0.1, now);
-                gain.gain.linearRampToValueAtTime(0, now+0.3);
-                osc.start(now); osc.stop(now+0.3);
+                gain.gain.linearRampToValueAtTime(0, now + 0.3);
+                osc.start(now); osc.stop(now + 0.3);
             }
         }
 
-        // --- 7. 视觉修复：强制视频检测 ---
-        const videoEl = document.getElementById('input-video');
-        const radarCtx = document.getElementById('radar-canvas').getContext('2d');
-        const hands = new window.Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
-        hands.setOptions({ maxNumHands: 1, minDetectionConfidence: 0.5 });
-
-        hands.onResults(res => {
-            radarCtx.clearRect(0,0,120,90);
-            if (res.multiHandLandmarks && res.multiHandLandmarks.length > 0) {
-                const p = res.multiHandLandmarks[0][8]; // 食指
-                
-                // 1. 雷达反馈
-                radarCtx.fillStyle = '#0f0';
-                radarCtx.beginPath();
-                radarCtx.arc(p.x*120, p.y*90, 5, 0, Math.PI*2);
-                radarCtx.fill();
-
-                // 2. 坐标映射 (超灵敏版)
-                // 解释：(0.5 - p.x) 镜像翻转。*50 放大系数。
-                const rangeX = (camera.aspect * camera.position.z);
-                const x = (0.5 - p.x) * (rangeX * 2.5); 
-                const y = -(p.y - 0.5) * 35;
-                
-                handTarget.set(x, y, 0);
-            }
-        });
-
-        // 强力检测循环：只要有视频流，就强行送入 MediaPipe
-        async function detectLoop() {
-            if (videoEl.readyState >= 2 && !videoEl.paused) {
-                await hands.send({image: videoEl});
-            }
-            requestAnimationFrame(detectLoop);
-        }
-
-        // 启动函数
-        window.startGame = async (cat) => {
+        // 启动
+        window.startGame = (cat) => {
             currentPool = DB[cat];
             document.getElementById('lobby-screen').style.display = 'none';
             document.getElementById('game-ui').style.display = 'block';
-            
-            audioCtx.resume(); // 解锁音频
-            
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: 'user', width: {ideal: 640}, height: {ideal: 480} }
-                });
-                videoEl.srcObject = stream;
-                videoEl.play();
-                detectLoop(); // 启动检测
-            } catch(e) {
-                alert("相机启动失败，请检查权限");
-            }
-
+            audioCtx.resume();
+            startCamera();
             animate();
             setInterval(spawnBalloon, 1800);
         };
@@ -558,9 +513,6 @@
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
-        
-        // 预加载语音
-        window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
     </script>
 </body>
 </html>
