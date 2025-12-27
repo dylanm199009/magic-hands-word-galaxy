@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Magic Garden V32 (Final)</title>
+    <title>Magic Garden V33 (Tablet Fix)</title>
     
     <!-- 1. 基础库 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" crossorigin="anonymous"></script>
@@ -16,22 +16,21 @@
         body, html { 
             margin: 0; padding: 0; width: 100%; height: 100%; 
             overflow: hidden; font-family: 'Fredoka', sans-serif; 
-            background: #87CEEB; /* 默认底色 */
-            touch-action: none; user-select: none;
+            background: #87CEEB; touch-action: none; user-select: none;
+            -webkit-user-select: none; /* iOS Safari */
         }
 
-        /* 动态天空 (最底层) */
         #sky-gradient {
             position: fixed; inset: 0; z-index: -10; 
-            background: linear-gradient(180deg, #a18cd1 0%, #fbc2eb 100%);
+            background: linear-gradient(180deg, #a1c4fd 0%, #c2e9fb 100%);
         }
 
-        /* 调试条 */
+        /* 调试条 (错误显示) */
         #debug-bar {
             position: fixed; top: 0; left: 0; width: 100%; 
-            background: rgba(0,0,0,0.6); color: #0f0; 
-            font-size: 11px; padding: 4px; z-index: 99999; text-align: center;
-            pointer-events: none;
+            background: rgba(255, 0, 0, 0.8); color: white; 
+            font-size: 12px; padding: 8px; z-index: 99999; text-align: center;
+            display: none; pointer-events: none;
         }
 
         /* 1. 大厅 */
@@ -46,34 +45,36 @@
         #magic-tree { font-size: clamp(50px, 10vw, 80px); display: block; animation: grow 2s infinite alternate; }
         @keyframes grow { from {transform: scale(1);} to {transform: scale(1.1);} }
 
-        /* 关卡网格 */
+        /* 关卡网格 (平板适配) */
         .level-grid {
             display: grid; 
-            grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); 
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); 
             gap: 15px; 
-            width: 90%; max-width: 600px; max-height: 50vh; 
+            width: 90%; max-width: 700px; max-height: 50vh; 
             overflow-y: auto; padding: 10px;
+            -webkit-overflow-scrolling: touch; /* iOS 滚动流畅 */
         }
         .lvl-btn {
             aspect-ratio: 1; border: none; border-radius: 15px; width: 100%;
-            background: white; border-bottom: 4px solid var(--c);
-            font-size: 16px; font-weight: bold; color: #555; cursor: pointer;
+            background: white; border-bottom: 5px solid var(--c);
+            font-size: 18px; font-weight: bold; color: #555; cursor: pointer;
             box-shadow: 0 4px 10px rgba(0,0,0,0.1);
             display: flex; flex-direction: column; justify-content: center; align-items: center;
-            transition: transform 0.1s;
+            transition: transform 0.1s, opacity 0.2s;
         }
         .lvl-btn:active { transform: scale(0.95); }
+        .lvl-btn.loading { opacity: 0.5; pointer-events: none; }
 
-        /* 2. 游戏 HUD */
+        /* 2. HUD */
         #game-ui { position: fixed; inset: 0; pointer-events: none; z-index: 10; display: none; }
         .top-bar { 
             position: absolute; top: 20px; left: 0; width: 100%; padding: 0 20px;
             display: flex; justify-content: space-between; box-sizing: border-box; 
         }
         .score-box { font-size: 32px; color: #fdcb6e; font-weight: 900; text-shadow: 2px 2px 0 #d63031; }
-        .home-btn { pointer-events: auto; padding: 8px 15px; background: #ff7675; border: none; border-radius: 10px; color: white; font-weight: bold; cursor: pointer; }
+        .home-btn { pointer-events: auto; padding: 8px 20px; background: #ff7675; border: none; border-radius: 10px; color: white; font-weight: bold; cursor: pointer; }
 
-        /* 3. 学习卡片 */
+        /* 3. 卡片 */
         #card-modal {
             position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 30;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -101,18 +102,23 @@
         }
         @keyframes pulse { 70% { box-shadow: 0 0 0 15px rgba(0, 206, 201, 0); } }
 
-        /* 4. 摄像头预览 */
-        #cam-container {
+        /* 4. 摄像头预览 (iPad 核心修复：不移出屏幕) */
+        /* 我们把主视频流放在底层，透明度极低，防止被浏览器冻结 */
+        #input-video {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            object-fit: cover; transform: scaleX(-1);
+            opacity: 0.01; /* 几乎透明，但必须可见 */
+            z-index: -5; pointer-events: none;
+        }
+
+        /* 调试小窗 */
+        #cam-preview-box {
             position: fixed; bottom: 10px; right: 10px; width: 140px; height: 105px;
             background: #000; border: 2px solid white; border-radius: 10px; z-index: 50;
             overflow: hidden; pointer-events: none;
         }
-        #input-video {
-            width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1);
-        }
         #radar-canvas {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            transform: scaleX(-1); z-index: 2;
+            width: 100%; height: 100%; transform: scaleX(-1);
         }
 
         #vfx-layer { position: fixed; inset: 0; pointer-events: none; z-index: 20; overflow: hidden; }
@@ -129,30 +135,30 @@
     </style>
 </head>
 <body>
-    <div id="debug-bar">V32 初始化...</div>
+    <div id="debug-bar"></div>
     <div id="sky-gradient"></div>
 
     <!-- 大厅 -->
     <div id="lobby-screen">
         <div class="logo">
             <h1>🌸 奇幻花园</h1>
-            <p>V32 完美修复版</p>
+            <p>V33 平板稳定版</p>
         </div>
         <div class="tree-box">
             <div id="magic-tree">🌳</div>
             <div style="font-size:12px; color:#666">分数: <span id="total-score">0</span></div>
         </div>
         <div class="level-grid">
-            <button class="lvl-btn" onclick="window.startGame('animals')" style="--c:#ff7675">🦁<br>动物</button>
-            <button class="lvl-btn" onclick="window.startGame('fruits')" style="--c:#fdcb6e">🍎<br>水果</button>
-            <button class="lvl-btn" onclick="window.startGame('colors')" style="--c:#a29bfe">🎨<br>颜色</button>
-            <button class="lvl-btn" onclick="window.startGame('numbers')" style="--c:#74b9ff">🔢<br>数字</button>
-            <button class="lvl-btn" onclick="window.startGame('body')" style="--c:#55efc4">👀<br>身体</button>
-            <button class="lvl-btn" onclick="window.startGame('nature')" style="--c:#00b894">🌳<br>自然</button>
-            <button class="lvl-btn" onclick="window.startGame('vehicles')" style="--c:#636e72">🚗<br>交通</button>
-            <button class="lvl-btn" onclick="window.startGame('action')" style="--c:#e17055">🏃<br>动作</button>
+            <button class="lvl-btn" onclick="tryStart('animals', this)" style="--c:#ff7675">🦁<br>动物</button>
+            <button class="lvl-btn" onclick="tryStart('fruits', this)" style="--c:#fdcb6e">🍎<br>水果</button>
+            <button class="lvl-btn" onclick="tryStart('colors', this)" style="--c:#a29bfe">🎨<br>颜色</button>
+            <button class="lvl-btn" onclick="tryStart('numbers', this)" style="--c:#74b9ff">🔢<br>数字</button>
+            <button class="lvl-btn" onclick="tryStart('body', this)" style="--c:#55efc4">👀<br>身体</button>
+            <button class="lvl-btn" onclick="tryStart('nature', this)" style="--c:#00b894">🌳<br>自然</button>
+            <button class="lvl-btn" onclick="tryStart('vehicles', this)" style="--c:#636e72">🚗<br>交通</button>
+            <button class="lvl-btn" onclick="tryStart('action', this)" style="--c:#e17055">🏃<br>动作</button>
         </div>
-        <div style="margin-top:20px; color:#888; font-size:12px;">点击关卡 -> 允许相机 -> 开始游戏</div>
+        <div style="margin-top:20px; color:#888; font-size:12px;">iOS用户请在Safari中运行</div>
     </div>
 
     <!-- HUD -->
@@ -177,9 +183,11 @@
         </div>
     </div>
 
-    <!-- 摄像头预览 -->
-    <div id="cam-container">
-        <video id="input-video" playsinline webkit-playsinline muted autoplay></video>
+    <!-- 视频流 (底层全屏透明) -->
+    <video id="input-video" playsinline webkit-playsinline muted></video>
+    
+    <!-- 调试小窗 (只显示雷达) -->
+    <div id="cam-preview-box">
         <canvas id="radar-canvas"></canvas>
     </div>
 
@@ -195,11 +203,20 @@
         let running = false;
         let lastSpawnTime = 0;
         
+        // 错误捕获
+        function showError(msg) {
+            const el = document.getElementById('debug-bar');
+            el.style.display = 'block';
+            el.innerText = msg;
+            console.error(msg);
+        }
+        window.onerror = (e) => showError("System Error: " + e);
+
         // 词库
         const DB = {
             animals: [{en:'LION',cn:'狮子',i:'🦁',c:0xffa502},{en:'TIGER',cn:'老虎',i:'🐯',c:0xff6348},{en:'CAT',cn:'猫咪',i:'🐱',c:0xff6b6b},{en:'DOG',cn:'小狗',i:'🐶',c:0x54a0ff},{en:'PANDA',cn:'熊猫',i:'🐼',c:0x2f3542},{en:'RABBIT',cn:'兔子',i:'🐰',c:0xffffff},{en:'PIG',cn:'小猪',i:'🐷',c:0xffcccc},{en:'FROG',cn:'青蛙',i:'🐸',c:0x2ecc71},{en:'MONKEY',cn:'猴子',i:'🐵',c:0xd35400}],
             fruits: [{en:'APPLE',cn:'苹果',i:'🍎',c:0xff4757},{en:'BANANA',cn:'香蕉',i:'🍌',c:0xffeaa7},{en:'GRAPE',cn:'葡萄',i:'🍇',c:0xa29bfe},{en:'PEACH',cn:'桃子',i:'🍑',c:0xfdcb6e},{en:'MELON',cn:'甜瓜',i:'🍈',c:0x55efc4},{en:'CHERRY',cn:'樱桃',i:'🍒',c:0xd63031},{en:'ORANGE',cn:'橙子',i:'🍊',c:0xe67e22},{en:'WATERMELON',cn:'西瓜',i:'🍉',c:0x2ecc71}],
-            colors: [{en:'RED',cn:'红色',i:'🔴',c:0xff0000},{en:'BLUE',cn:'蓝色',i:'🔵',c:0x0000ff},{en:'GREEN',cn:'绿色',i:'🟢',c:0x00ff00},{en:'YELLOW',cn:'黄色',i:'🟡',c:0xffff00},{en:'PURPLE',cn:'紫色',i:'🟣',c:0x800080},{en:'ORANGE',cn:'橙色',i:'🟠',c:0xffa500}],
+            colors: [{en:'RED',cn:'红色',i:'🔴',c:0xff0000},{en:'BLUE',cn:'蓝色',i:'🔵',c:0x0000ff},{en:'GREEN',cn:'绿色',i:'🟢',c:0x00ff00},{en:'YELLOW',cn:'黄色',i:'🟡',c:0xffff00},{en:'PURPLE',cn:'紫色',i:'🟣',c:0x800080},{en:'ORANGE',cn:'橙色',i:'🟠',c:0xffa500},{en:'BLACK',cn:'黑色',i:'⚫',c:0x000000},{en:'WHITE',cn:'白色',i:'⚪',c:0xffffff}],
             numbers: [{en:'ONE',cn:'一',i:'1️⃣',c:0x74b9ff},{en:'TWO',cn:'二',i:'2️⃣',c:0x0984e3},{en:'THREE',cn:'三',i:'3️⃣',c:0x6c5ce7},{en:'FOUR',cn:'四',i:'4️⃣',c:0xa29bfe},{en:'FIVE',cn:'五',i:'5️⃣',c:0x00cec9},{en:'TEN',cn:'十',i:'🔟',c:0x52b4bf}],
             body: [{en:'EYE',cn:'眼睛',i:'👁️',c:0xffffff},{en:'HAND',cn:'手',i:'🖐️',c:0xffcccc},{en:'NOSE',cn:'鼻子',i:'👃',c:0xf5cd79},{en:'MOUTH',cn:'嘴巴',i:'👄',c:0xff6b81}],
             vehicles: [{en:'CAR',cn:'汽车',i:'🚗',c:0xe74c3c},{en:'BUS',cn:'巴士',i:'🚌',c:0xf1c40f},{en:'PLANE',cn:'飞机',i:'✈️',c:0x3498db},{en:'SHIP',cn:'轮船',i:'🚢',c:0x34495e},{en:'ROCKET',cn:'火箭',i:'🚀',c:0x8e44ad}],
@@ -217,7 +234,6 @@
 
         // --- 1. AI 初始化 ---
         async function initHandLandmarker() {
-            document.getElementById('debug-bar').innerText = "加载 AI 模型...";
             try {
                 const vision = await FilesetResolver.forVisionTasks(
                     "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
@@ -225,7 +241,7 @@
                 handLandmarker = await HandLandmarker.createFromOptions(vision, {
                     baseOptions: {
                         modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
-                        delegate: "CPU" 
+                        delegate: "CPU" // 强制CPU，兼容平板
                     },
                     runningMode: "VIDEO",
                     numHands: 1,
@@ -233,9 +249,8 @@
                     minHandPresenceConfidence: 0.3,
                     minTrackingConfidence: 0.3
                 });
-                document.getElementById('debug-bar').innerText = "AI 就绪 | 待机";
             } catch (error) {
-                document.getElementById('debug-bar').innerText = "AI 错误: " + error;
+                showError("AI加载失败: " + error.message);
             }
         }
         initHandLandmarker();
@@ -246,8 +261,8 @@
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
         
-        // 关键：设置背景完全透明
-        renderer.setClearColor(0x000000, 0); 
+        // 背景透明，透出CSS天空
+        renderer.setClearColor(0x000000, 0);
         
         function resize() {
             camera.aspect = window.innerWidth / window.innerHeight;
@@ -300,7 +315,7 @@
 
             const mat = new THREE.MeshPhongMaterial({
                 color: color, transparent: true, opacity: 0.9, 
-                emissive: color, emissiveIntensity: 0.5
+                emissive: color, emissiveIntensity: 0.4
             });
             const sphere = new THREE.Mesh(new THREE.SphereGeometry(1.8, 32, 32), mat);
             group.add(sphere);
@@ -312,7 +327,9 @@
             
             const xSpawn = (camera.aspect * camera.position.z) + 8; 
             group.position.set(xSpawn, (Math.random()-0.5)*12, 0);
+            
             group.userData = { word: item, speed: 0.1 + Math.random()*0.05, type: type };
+            
             scene.add(group);
             balloons.push(group);
         }
@@ -334,7 +351,7 @@
             }
         }
 
-        // --- 4. 循环逻辑 ---
+        // --- 4. 核心循环 (检测+渲染) ---
         const videoElement = document.getElementById('input-video');
         const radarCtx = document.getElementById('radar-canvas').getContext('2d');
         const radarCanvas = document.getElementById('radar-canvas');
@@ -342,45 +359,51 @@
         async function loop(timestamp) {
             if (!running) return;
 
-            // AI 检测
+            // 1. AI检测
             if (handLandmarker && videoElement.currentTime !== lastVideoTime && !videoElement.paused) {
                 lastVideoTime = videoElement.currentTime;
                 try {
                     const results = handLandmarker.detectForVideo(videoElement, performance.now());
-                    radarCtx.clearRect(0,0,radarCanvas.width,radarCanvas.height);
                     
+                    // 绘制视频帧到底层(可选) + 绿点
+                    radarCtx.clearRect(0,0,radarCanvas.width,radarCanvas.height);
+                    // 绘制视频背景以确认有画面
+                    radarCtx.save();
+                    radarCtx.scale(-1, 1);
+                    radarCtx.translate(-radarCanvas.width, 0);
+                    radarCtx.drawImage(videoElement, 0, 0, radarCanvas.width, radarCanvas.height);
+                    radarCtx.restore();
+
                     if (results.landmarks && results.landmarks.length > 0) {
                         const landmarks = results.landmarks[0];
-                        const index = landmarks[8];
+                        const index = landmarks[8]; 
                         const thumb = landmarks[4];
 
+                        // 绿点
                         radarCtx.fillStyle = '#0f0'; radarCtx.beginPath();
                         radarCtx.arc((1-index.x)*radarCanvas.width, index.y*radarCanvas.height, 8, 0, Math.PI*2);
                         radarCtx.fill();
 
+                        // 坐标映射
                         const rangeX = (camera.aspect * camera.position.z); 
                         const x = (0.5 - index.x) * (rangeX * 2.8); 
                         const y = -(index.y - 0.5) * 35;
                         handTarget.set(x, y, 0);
 
                         isGrabbing = Math.hypot(index.x - thumb.x, index.y - thumb.y) < 0.05;
-                        document.getElementById('debug-bar').innerText = "✅ 追踪中";
-                    } else {
-                        document.getElementById('debug-bar').innerText = "👀 请举手";
                     }
                 } catch(e) {}
             }
 
-            // 气球生成 (时间戳修正)
+            // 2. 气球生成 (时间戳)
             if (!isPaused && timestamp - lastSpawnTime > 1800) {
                 spawnBalloon();
                 lastSpawnTime = timestamp;
             }
 
-            // 动画
+            // 3. 动画
             avatar.position.lerp(handTarget, 0.25);
             avatar.rotation.z = (avatar.position.x - handTarget.x) * -0.15;
-            
             const s = isGrabbing ? 0.8 : 1.0;
             avatar.scale.setScalar(s);
 
@@ -443,16 +466,13 @@
             setTimeout(()=>el.remove(), 1000);
         }
 
-        // --- 5. 语音跟读 (TTS 防回收 + 强制超时) ---
-        // 将 utterance 挂载到 window，防止被 GC
-        window.currentUtterance = null;
+        // --- 5. 语音与卡片 (防卡死) ---
         const synth = window.speechSynthesis;
         let ttsTimer = null;
 
         function showCard(data) {
             isPaused = true;
             currentWordData = data;
-            
             document.getElementById('c-icon').innerText = data.i;
             document.getElementById('c-word').innerText = data.en;
             document.getElementById('c-cn').innerText = data.cn;
@@ -462,55 +482,64 @@
             document.getElementById('mic-btn').style.display = 'none';
             
             synth.cancel();
-            
             const u = new SpeechSynthesisUtterance(data.en);
-            u.lang = 'en-US';
-            u.rate = 0.9;
+            u.lang = 'en-US'; u.rate = 0.9;
             
-            const enableMic = () => {
+            const done = () => {
                 document.getElementById('mic-hint').innerText = "🎤 点击跟读";
                 document.getElementById('mic-btn').style.display = 'flex';
                 clearTimeout(ttsTimer);
             };
-            
-            u.onend = enableMic;
-            u.onerror = enableMic; // 出错也强制继续
+            u.onend = done;
+            ttsTimer = setTimeout(done, 1500); // 强制显示
 
-            // 挂载到全局，防止回收
-            window.currentUtterance = u;
-            
             synth.speak(u);
-
-            // 2秒强制超时，防止 iOS 朗读卡死
-            clearTimeout(ttsTimer);
-            ttsTimer = setTimeout(enableMic, 2000);
         }
 
         window.startSpeechRec = () => {
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
             document.getElementById('mic-hint').innerText = "👂 正在听...";
-            // 模拟识别 (兼容iOS)
-            setTimeout(() => {
-                document.getElementById('mic-hint').innerText = "🌟 Perfect!";
-                playSynth('win');
-                spawnExplosion(avatar.position, 0xffff00, 'rainbow');
-                score += 20; document.getElementById('score').innerText = score;
-                setTimeout(window.closeCard, 1000);
-            }, 1000);
+            if(isIOS || !('webkitSpeechRecognition' in window)) {
+                setTimeout(() => { document.getElementById('mic-hint').innerText = "🌟 完美!"; onSuccess(); }, 1000);
+            } else {
+                const Rec = window.webkitSpeechRecognition;
+                const r = new Rec();
+                r.lang = 'en-US'; r.start();
+                r.onresult = (e) => {
+                    const t = e.results[0][0].transcript.toLowerCase();
+                    if(t.includes(currentWordData.en.toLowerCase())) {
+                        document.getElementById('mic-hint').innerText = "🌟 Perfect!"; onSuccess();
+                    } else {
+                        document.getElementById('mic-hint').innerText = "😅 再试一次";
+                    }
+                };
+            }
         };
+
+        function onSuccess() {
+            playSynth('win');
+            spawnExplosion(avatar.position, 0xffff00, 'rainbow');
+            score += 20; document.getElementById('score').innerText = score;
+            setTimeout(() => {
+                document.getElementById('card-modal').classList.remove('active');
+                isPaused = false;
+            }, 1500);
+        }
 
         window.closeCard = () => {
             document.getElementById('card-modal').classList.remove('active');
             isPaused = false;
         };
 
-        // --- 6. 摄像头启动 ---
+        // --- 6. 摄像头启动 (宽松策略) ---
         async function startCamera() {
-            if(!handLandmarker) { alert("AI加载中，请稍候"); return; }
+            if(!handLandmarker) { alert("AI模型正在加载，请稍候"); return; }
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
-                });
+                // 不强制 facingMode，尝试获取任意相机
+                const constraints = { video: { width: { ideal: 640 }, height: { ideal: 480 } } };
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
                 videoElement.srcObject = stream;
+                
                 videoElement.onloadedmetadata = () => {
                     videoElement.play();
                     radarCanvas.width = videoElement.videoWidth;
@@ -519,7 +548,7 @@
                     requestAnimationFrame(loop);
                 };
             } catch(e) {
-                alert("相机错误: " + e.message);
+                showError("无法启动相机: " + e.message);
             }
         }
 
@@ -539,22 +568,26 @@
             }
         }
 
-        window.startGame = (cat) => {
+        // 绑定启动按钮 (解决点击无反应)
+        window.tryStart = (cat, btn) => {
+            if(!handLandmarker) {
+                btn.style.opacity = 0.5;
+                btn.innerText = "加载中...";
+                return;
+            }
+            
             currentPool = DB[cat];
             document.getElementById('lobby-screen').style.display = 'none';
             document.getElementById('game-ui').style.display = 'block';
             
             audioCtx.resume();
-            // 关键：点击时预朗读，解锁TTS
-            const u = new SpeechSynthesisUtterance('Start');
-            window.currentUtterance = u;
+            const u = new SpeechSynthesisUtterance('');
             synth.speak(u);
 
             startCamera();
         };
 
         window.addEventListener('resize', resize);
-        window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
     </script>
 </body>
 </html>
