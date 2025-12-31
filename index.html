@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Magic Garden V35 (PC/Mobile Universal)</title>
+    <title>Magic Garden V36 (CN Fix)</title>
     
     <!-- 1. 基础库 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" crossorigin="anonymous"></script>
@@ -44,7 +44,7 @@
         #magic-tree { font-size: clamp(50px, 10vw, 80px); display: block; animation: grow 2s infinite alternate; }
         @keyframes grow { from {transform: scale(1);} to {transform: scale(1.1);} }
 
-        /* 关卡列表 */
+        /* 关卡网格 */
         .level-grid {
             display: grid; 
             grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); 
@@ -59,7 +59,7 @@
             box-shadow: 0 4px 10px rgba(0,0,0,0.1);
             display: flex; flex-direction: column; justify-content: center; align-items: center;
             transition: transform 0.1s, opacity 0.3s;
-            opacity: 0.5; pointer-events: none; /* 默认禁用，等待AI加载 */
+            opacity: 0.5; pointer-events: none; /* AI加载前禁用 */
         }
         .lvl-btn.active { opacity: 1; pointer-events: auto; }
         .lvl-btn:active { transform: scale(0.95); }
@@ -76,7 +76,7 @@
         .score-box { font-size: 32px; color: #fdcb6e; font-weight: 900; text-shadow: 2px 2px 0 #d63031; }
         .home-btn { pointer-events: auto; padding: 8px 15px; background: #ff7675; border: none; border-radius: 10px; color: white; font-weight: bold; cursor: pointer; }
 
-        /* 3. 卡片 (全自动 UI) */
+        /* 3. 卡片 */
         #card-modal {
             position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 30;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -96,38 +96,28 @@
             margin-top: 20px; width: 100%; 
             display: flex; flex-direction: column; align-items: center; justify-content: center; 
         }
-        #mic-icon {
-            width: 70px; height: 70px; border-radius: 50%; 
-            background: #ccc; font-size: 30px; color: white; 
-            display: flex; align-items: center; justify-content: center;
-            transition: all 0.3s;
+        #mic-btn {
+            width: 70px; height: 70px; border-radius: 50%; border: none; background: #00cec9;
+            font-size: 30px; color: white; cursor: pointer; display: none;
+            box-shadow: 0 0 0 0 rgba(0, 206, 201, 0.7); animation: pulse 1.5s infinite;
+            justify-content: center; align-items: center; display: flex;
         }
-        #mic-icon.listening {
-            background: #00cec9;
-            box-shadow: 0 0 0 0 rgba(0, 206, 201, 0.7);
-            animation: pulse-listen 1.5s infinite;
-        }
-        @keyframes pulse-listen {
-            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(0, 206, 201, 0.7); }
-            70% { transform: scale(1.1); box-shadow: 0 0 0 15px rgba(0, 206, 201, 0); }
-            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(0, 206, 201, 0); }
-        }
+        @keyframes pulse { 70% { box-shadow: 0 0 0 15px rgba(0, 206, 201, 0); } }
         #timer-bar { width: 0%; height: 4px; background: #00cec9; border-radius: 2px; margin-top: 10px; transition: width 1s linear; }
 
-        /* 4. 摄像头预览 (底层可见) */
-        #input-video {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            object-fit: cover; transform: scaleX(-1);
-            opacity: 0.01; z-index: -5; pointer-events: none;
-        }
-
-        /* 调试小窗 */
-        #cam-preview-box {
+        /* 4. 摄像头 & 雷达 */
+        #cam-container {
             position: fixed; bottom: 10px; right: 10px; width: 140px; height: 105px;
             background: #000; border: 2px solid white; border-radius: 10px; z-index: 50;
             overflow: hidden; pointer-events: none;
         }
-        #radar-canvas { width: 100%; height: 100%; transform: scaleX(-1); }
+        #input-video {
+            width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1);
+        }
+        #radar-canvas {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            transform: scaleX(-1); z-index: 2;
+        }
 
         #vfx-layer { position: fixed; inset: 0; pointer-events: none; z-index: 20; overflow: hidden; }
         .float-text {
@@ -143,31 +133,31 @@
     </style>
 </head>
 <body>
-    <div id="debug-bar">初始化系统...</div>
+    <div id="debug-bar">初始化 AI (请确保已上传 model)...</div>
     <div id="sky-gradient"></div>
 
     <!-- 大厅 -->
     <div id="lobby-screen">
         <div class="logo">
             <h1>🌸 奇幻花园</h1>
-            <p>V35 全自动版</p>
+            <p>V36 国行修正版</p>
         </div>
         <div class="tree-box">
             <div id="magic-tree">🌳</div>
             <div style="font-size:12px; color:#666">分数: <span id="total-score">0</span></div>
         </div>
-        <!-- 按钮初始禁用，等待JS解锁 -->
         <div class="level-grid" id="level-grid">
-            <button class="lvl-btn" onclick="tryStart('animals')" style="--c:#ff7675">🦁<br>动物</button>
-            <button class="lvl-btn" onclick="tryStart('fruits')" style="--c:#fdcb6e">🍎<br>水果</button>
-            <button class="lvl-btn" onclick="tryStart('colors')" style="--c:#a29bfe">🎨<br>颜色</button>
-            <button class="lvl-btn" onclick="tryStart('numbers')" style="--c:#74b9ff">🔢<br>数字</button>
-            <button class="lvl-btn" onclick="tryStart('body')" style="--c:#55efc4">👀<br>身体</button>
-            <button class="lvl-btn" onclick="tryStart('nature')" style="--c:#00b894">🌳<br>自然</button>
-            <button class="lvl-btn" onclick="tryStart('vehicles')" style="--c:#636e72">🚗<br>交通</button>
-            <button class="lvl-btn" onclick="tryStart('action')" style="--c:#e17055">🏃<br>动作</button>
+            <!-- 按钮会等待AI加载后解锁 -->
+            <button class="lvl-btn" onclick="window.startGame('animals')" style="--c:#ff7675">🦁<br>动物</button>
+            <button class="lvl-btn" onclick="window.startGame('fruits')" style="--c:#fdcb6e">🍎<br>水果</button>
+            <button class="lvl-btn" onclick="window.startGame('colors')" style="--c:#a29bfe">🎨<br>颜色</button>
+            <button class="lvl-btn" onclick="window.startGame('numbers')" style="--c:#74b9ff">🔢<br>数字</button>
+            <button class="lvl-btn" onclick="window.startGame('body')" style="--c:#55efc4">👀<br>身体</button>
+            <button class="lvl-btn" onclick="window.startGame('nature')" style="--c:#00b894">🌳<br>自然</button>
+            <button class="lvl-btn" onclick="window.startGame('vehicles')" style="--c:#636e72">🚗<br>交通</button>
+            <button class="lvl-btn" onclick="window.startGame('action')" style="--c:#e17055">🏃<br>动作</button>
         </div>
-        <div id="status-msg">🚀 正在加载 AI 模型 (0%)...</div>
+        <div id="status-msg">🚀 正在加载 AI 模型...</div>
     </div>
 
     <!-- HUD -->
@@ -178,7 +168,7 @@
         </div>
         <div id="vfx-layer"></div>
         
-        <!-- 卡片 (全自动) -->
+        <!-- 卡片 -->
         <div id="card-modal">
             <div class="card-inner">
                 <div id="c-icon">🍎</div>
@@ -197,37 +187,29 @@
     </div>
 
     <!-- 摄像头预览 -->
-    <div id="cam-preview-box">
+    <div id="cam-container">
+        <video id="input-video" playsinline webkit-playsinline muted autoplay></video>
         <canvas id="radar-canvas"></canvas>
     </div>
-    
-    <!-- 视频流 -->
-    <video id="input-video" playsinline webkit-playsinline muted></video>
 
     <canvas id="webgl-canvas"></canvas>
 
-    <!-- 模块加载 -->
+    <!-- 核心逻辑：使用 UNPKG 加速的 MediaPipe -->
     <script type="module">
-        import { FilesetResolver, HandLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/+esm";
+        import { FilesetResolver, HandLandmarker } from "https://unpkg.com/@mediapipe/tasks-vision@0.10.14/vision_bundle.js";
 
         // --- 0. 全局变量 ---
         window.THREE = THREE; 
         let handLandmarker = undefined;
-        let running = false;
         let lastVideoTime = -1;
+        let running = false;
+        let lastSpawnTime = 0;
         
-        // 错误处理
-        function showError(msg) {
-            document.getElementById('debug-bar').innerText = msg;
-            console.error(msg);
-        }
-        window.onerror = (e) => showError("Sys Err: " + e);
-
-        // 词库 (保持完整)
+        // 词库 (完整)
         const DB = {
             animals: [{en:'LION',cn:'狮子',i:'🦁',c:0xffa502},{en:'TIGER',cn:'老虎',i:'🐯',c:0xff6348},{en:'CAT',cn:'猫咪',i:'🐱',c:0xff6b6b},{en:'DOG',cn:'小狗',i:'🐶',c:0x54a0ff},{en:'PANDA',cn:'熊猫',i:'🐼',c:0x2f3542},{en:'RABBIT',cn:'兔子',i:'🐰',c:0xffffff},{en:'PIG',cn:'小猪',i:'🐷',c:0xffcccc},{en:'FROG',cn:'青蛙',i:'🐸',c:0x2ecc71},{en:'MONKEY',cn:'猴子',i:'🐵',c:0xd35400}],
             fruits: [{en:'APPLE',cn:'苹果',i:'🍎',c:0xff4757},{en:'BANANA',cn:'香蕉',i:'🍌',c:0xffeaa7},{en:'GRAPE',cn:'葡萄',i:'🍇',c:0xa29bfe},{en:'PEACH',cn:'桃子',i:'🍑',c:0xfdcb6e},{en:'MELON',cn:'甜瓜',i:'🍈',c:0x55efc4},{en:'CHERRY',cn:'樱桃',i:'🍒',c:0xd63031},{en:'ORANGE',cn:'橙子',i:'🍊',c:0xe67e22},{en:'WATERMELON',cn:'西瓜',i:'🍉',c:0x2ecc71}],
-            colors: [{en:'RED',cn:'红色',i:'🔴',c:0xff0000},{en:'BLUE',cn:'蓝色',i:'🔵',c:0x0000ff},{en:'GREEN',cn:'绿色',i:'🟢',c:0x00ff00},{en:'YELLOW',cn:'黄色',i:'🟡',c:0xffff00},{en:'PURPLE',cn:'紫色',i:'🟣',c:0x800080},{en:'ORANGE',cn:'橙色',i:'🟠',c:0xffa500}],
+            colors: [{en:'RED',cn:'红色',i:'🔴',c:0xff0000},{en:'BLUE',cn:'蓝色',i:'🔵',c:0x0000ff},{en:'GREEN',cn:'绿色',i:'🟢',c:0x00ff00},{en:'YELLOW',cn:'黄色',i:'🟡',c:0xffff00},{en:'PURPLE',cn:'紫色',i:'🟣',c:0x800080},{en:'ORANGE',cn:'橙色',i:'🟠',c:0xffa500},{en:'BLACK',cn:'黑色',i:'⚫',c:0x000000},{en:'WHITE',cn:'白色',i:'⚪',c:0xffffff}],
             numbers: [{en:'ONE',cn:'一',i:'1️⃣',c:0x74b9ff},{en:'TWO',cn:'二',i:'2️⃣',c:0x0984e3},{en:'THREE',cn:'三',i:'3️⃣',c:0x6c5ce7},{en:'FOUR',cn:'四',i:'4️⃣',c:0xa29bfe},{en:'FIVE',cn:'五',i:'5️⃣',c:0x00cec9},{en:'TEN',cn:'十',i:'🔟',c:0x52b4bf}],
             body: [{en:'EYE',cn:'眼睛',i:'👁️',c:0xffffff},{en:'HAND',cn:'手',i:'🖐️',c:0xffcccc},{en:'NOSE',cn:'鼻子',i:'👃',c:0xf5cd79},{en:'MOUTH',cn:'嘴巴',i:'👄',c:0xff6b81}],
             vehicles: [{en:'CAR',cn:'汽车',i:'🚗',c:0xe74c3c},{en:'BUS',cn:'巴士',i:'🚌',c:0xf1c40f},{en:'PLANE',cn:'飞机',i:'✈️',c:0x3498db},{en:'SHIP',cn:'轮船',i:'🚢',c:0x34495e},{en:'ROCKET',cn:'火箭',i:'🚀',c:0x8e44ad}],
@@ -242,19 +224,22 @@
         let balloons = [];
         let handTarget = new THREE.Vector3(0,0,0);
         let currentWordData = null;
-        let lastSpawnTime = 0;
 
-        // --- 1. AI 初始化 ---
+        // --- 1. AI 初始化 (本地文件优先) ---
         async function initHandLandmarker() {
-            document.getElementById('status-msg').innerText = "正在加载 AI 模型...";
+            document.getElementById('debug-bar').innerText = "加载中... 请确保已上传 .task 文件";
             try {
+                // 使用 unpkg 的 WASM 资源
                 const vision = await FilesetResolver.forVisionTasks(
-                    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
+                    "https://unpkg.com/@mediapipe/tasks-vision@0.10.14/wasm"
                 );
+                
+                // 关键点：尝试加载本地模型文件
+                // 如果你没有上传，这步会失败
                 handLandmarker = await HandLandmarker.createFromOptions(vision, {
                     baseOptions: {
-                        modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
-                        delegate: "CPU" // 强制CPU兼容
+                        modelAssetPath: "./hand_landmarker.task", // 本地路径！
+                        delegate: "CPU"
                     },
                     runningMode: "VIDEO",
                     numHands: 1,
@@ -263,14 +248,38 @@
                     minTrackingConfidence: 0.3
                 });
                 
-                // AI 加载完毕，解锁按钮
-                document.getElementById('status-msg').innerText = "✅ 系统就绪！请点击关卡";
-                document.querySelectorAll('.lvl-btn').forEach(btn => btn.classList.add('active'));
+                document.getElementById('debug-bar').innerText = "AI 加载成功!";
+                document.getElementById('status-msg').innerText = "✅ 系统就绪，请点击关卡";
+                document.querySelectorAll('.lvl-btn').forEach(b => b.classList.add('active'));
                 
             } catch (error) {
-                showError("AI加载失败: " + error.message);
+                console.error(error);
+                document.getElementById('debug-bar').innerText = "AI 失败: 找不到模型文件，请查看说明";
+                // 备用：尝试 Google 链接 (如果用户翻墙了)
+                tryFallbackGoogle();
             }
         }
+
+        async function tryFallbackGoogle() {
+            try {
+                const vision = await FilesetResolver.forVisionTasks(
+                    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
+                );
+                handLandmarker = await HandLandmarker.createFromOptions(vision, {
+                    baseOptions: {
+                        modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
+                        delegate: "CPU"
+                    },
+                    runningMode: "VIDEO",
+                    numHands: 1
+                });
+                document.getElementById('debug-bar').innerText = "备用源加载成功";
+                document.querySelectorAll('.lvl-btn').forEach(b => b.classList.add('active'));
+            } catch(e) {
+                document.getElementById('debug-bar').innerText = "彻底失败，请手动下载模型文件";
+            }
+        }
+
         initHandLandmarker();
 
         // --- 2. 3D 场景 ---
@@ -278,7 +287,7 @@
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
-        renderer.setClearColor(0x000000, 0); // 透明背景
+        renderer.setClearColor(0x000000, 0); 
         
         function resize() {
             camera.aspect = window.innerWidth / window.innerHeight;
@@ -295,7 +304,7 @@
         dl.position.set(5, 10, 5);
         scene.add(dl);
 
-        // 主角 Avatar
+        // Avatar
         const avatar = new THREE.Group();
         const body = new THREE.Mesh(new THREE.SphereGeometry(1.2, 32, 32), new THREE.MeshPhongMaterial({color:0xffffff}));
         avatar.add(body);
@@ -341,10 +350,7 @@
             sprite.scale.set(2, 2, 1);
             group.add(sprite);
             
-            // 响应式出生点 (适配笔记本宽屏)
-            // 根据摄像机视野计算边缘
-            const xEdge = (camera.aspect * camera.position.z);
-            const xSpawn = xEdge + 5; 
+            const xSpawn = (camera.aspect * camera.position.z) + 8; 
             group.position.set(xSpawn, (Math.random()-0.5)*12, 0);
             
             group.userData = { word: item, speed: 0.1 + Math.random()*0.05, type: type };
@@ -362,15 +368,12 @@
                 const p = new THREE.Mesh(geo, mat);
                 p.position.copy(pos);
                 scene.add(p);
-                gsap.to(p.position, { 
-                    x:pos.x+(Math.random()-0.5)*12, y:pos.y+(Math.random()-0.5)*12, z:pos.z+(Math.random()-0.5)*5, 
-                    duration: 1, ease: "power2.out" 
-                });
+                gsap.to(p.position, { x:pos.x+(Math.random()-0.5)*12, y:pos.y+(Math.random()-0.5)*12, z:pos.z+(Math.random()-0.5)*5, duration: 1, ease: "power2.out" });
                 gsap.to(p.scale, { x:0, y:0, z:0, duration: 1, onComplete: ()=>scene.remove(p) });
             }
         }
 
-        // --- 4. 循环逻辑 (Loop) ---
+        // --- 4. 循环逻辑 ---
         const videoElement = document.getElementById('input-video');
         const radarCtx = document.getElementById('radar-canvas').getContext('2d');
         const radarCanvas = document.getElementById('radar-canvas');
@@ -384,24 +387,26 @@
                 try {
                     const results = handLandmarker.detectForVideo(videoElement, performance.now());
                     radarCtx.clearRect(0,0,radarCanvas.width,radarCanvas.height);
-                    
+                    // 绘制视频背景
+                    radarCtx.save();
+                    radarCtx.scale(-1, 1);
+                    radarCtx.translate(-radarCanvas.width, 0);
+                    radarCtx.drawImage(videoElement, 0, 0, radarCanvas.width, radarCanvas.height);
+                    radarCtx.restore();
+
                     if (results.landmarks && results.landmarks.length > 0) {
                         const landmarks = results.landmarks[0];
                         const index = landmarks[8];
                         const thumb = landmarks[4];
 
-                        // 绘制绿点
+                        // 绿点
                         radarCtx.fillStyle = '#0f0'; radarCtx.beginPath();
                         radarCtx.arc((1-index.x)*radarCanvas.width, index.y*radarCanvas.height, 8, 0, Math.PI*2);
                         radarCtx.fill();
 
-                        // 坐标映射 (适配横竖屏)
-                        const aspect = camera.aspect;
-                        const rangeX = aspect * camera.position.z * 1.2; // 稍微扩大范围
-                        const rangeY = camera.position.z * 0.8;
-
-                        const x = (0.5 - index.x) * (rangeX * 2); // 灵敏度 x2
-                        const y = -(index.y - 0.5) * (rangeY * 2);
+                        const rangeX = (camera.aspect * camera.position.z); 
+                        const x = (0.5 - index.x) * (rangeX * 2.8); 
+                        const y = -(index.y - 0.5) * 35;
                         handTarget.set(x, y, 0);
 
                         isGrabbing = Math.hypot(index.x - thumb.x, index.y - thumb.y) < 0.05;
@@ -416,14 +421,12 @@
             }
 
             // 动画
-            avatar.position.lerp(handTarget, 0.2);
+            avatar.position.lerp(handTarget, 0.25);
             avatar.rotation.z = (avatar.position.x - handTarget.x) * -0.15;
             const s = isGrabbing ? 0.8 : 1.0;
             avatar.scale.setScalar(s);
 
             if(!isPaused) {
-                const leftBound = -(camera.aspect * camera.position.z) - 5; // 动态计算左边界
-                
                 for(let i=balloons.length-1; i>=0; i--) {
                     const b = balloons[i];
                     b.position.x -= b.userData.speed;
@@ -435,7 +438,7 @@
 
                     if(b.position.distanceTo(avatar.position) < 2.5) {
                         hit(b, i);
-                    } else if(b.position.x < leftBound) {
+                    } else if(b.position.x < -30) {
                         scene.remove(b);
                         balloons.splice(i, 1);
                     }
@@ -488,7 +491,6 @@
         let recTimer = null;
         let recognition = null;
 
-        // 初始化语音识别
         if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             recognition = new SpeechRecognition();
@@ -501,13 +503,11 @@
             isPaused = true;
             currentWordData = data;
             
-            // 更新 UI
             document.getElementById('c-icon').innerText = data.i;
             document.getElementById('c-word').innerText = data.en;
             document.getElementById('c-cn').innerText = data.cn;
             document.getElementById('card-modal').classList.add('active');
             
-            // 重置状态
             const micIcon = document.getElementById('mic-icon');
             micIcon.classList.remove('listening');
             micIcon.style.background = "#ccc";
@@ -515,7 +515,6 @@
             document.getElementById('timer-bar').style.width = "0%";
             document.getElementById('timer-bar').style.transition = "none";
 
-            // 朗读
             synth.cancel();
             const u = new SpeechSynthesisUtterance(data.en);
             u.lang = 'en-US'; u.rate = 0.9;
@@ -540,7 +539,6 @@
             micIcon.style.background = "#00cec9";
             micIcon.classList.add('listening'); 
             
-            // 进度条
             timerBar.style.width = "100%";
             timerBar.style.transition = "width 10s linear";
 
@@ -559,7 +557,6 @@
                 } catch(e) {}
             }
 
-            // 倒计时 (iOS 模拟成功)
             const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
             const waitTime = isIOS ? 3000 + Math.random() * 2000 : 10000;
 
@@ -599,19 +596,16 @@
 
         // --- 6. 摄像头启动 ---
         async function startCamera() {
-            if(!handLandmarker) { alert("AI模型正在加载..."); return; }
+            if(!handLandmarker) { alert("AI加载中..."); return; }
             try {
-                // 不指定 facingMode，自动选择
-                const constraints = { video: { width: { ideal: 640 }, height: { ideal: 480 } } };
-                const stream = await navigator.mediaDevices.getUserMedia(constraints);
-                const video = document.getElementById('input-video');
-                video.srcObject = stream;
-                
-                video.onloadedmetadata = () => {
-                    video.play();
-                    // 适配 Radar
-                    document.getElementById('radar-canvas').width = video.videoWidth;
-                    document.getElementById('radar-canvas').height = video.videoHeight;
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
+                });
+                videoElement.srcObject = stream;
+                videoElement.onloadedmetadata = () => {
+                    videoElement.play();
+                    radarCanvas.width = videoElement.videoWidth;
+                    radarCanvas.height = videoElement.videoHeight;
                     running = true;
                     requestAnimationFrame(loop);
                 };
@@ -636,10 +630,7 @@
             }
         }
 
-        // 绑定启动 (全局)
-        window.tryStart = (cat) => {
-            if(!handLandmarker) return;
-            
+        window.startGame = (cat) => {
             currentPool = DB[cat];
             document.getElementById('lobby-screen').style.display = 'none';
             document.getElementById('game-ui').style.display = 'block';
