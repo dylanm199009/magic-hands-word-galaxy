@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Magic Garden V36 (CN Fix)</title>
+    <title>Magic Garden V37 (Loading Fix)</title>
     
-    <!-- 1. 基础库 -->
+    <!-- 1. 基础库 (Three.js + GSAP) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
 
@@ -133,21 +133,20 @@
     </style>
 </head>
 <body>
-    <div id="debug-bar">初始化 AI (请确保已上传 model)...</div>
+    <div id="debug-bar">V37: 初始化核心模块...</div>
     <div id="sky-gradient"></div>
 
     <!-- 大厅 -->
     <div id="lobby-screen">
         <div class="logo">
             <h1>🌸 奇幻花园</h1>
-            <p>V36 国行修正版</p>
+            <p>V37 加载修复版</p>
         </div>
         <div class="tree-box">
             <div id="magic-tree">🌳</div>
             <div style="font-size:12px; color:#666">分数: <span id="total-score">0</span></div>
         </div>
         <div class="level-grid" id="level-grid">
-            <!-- 按钮会等待AI加载后解锁 -->
             <button class="lvl-btn" onclick="window.startGame('animals')" style="--c:#ff7675">🦁<br>动物</button>
             <button class="lvl-btn" onclick="window.startGame('fruits')" style="--c:#fdcb6e">🍎<br>水果</button>
             <button class="lvl-btn" onclick="window.startGame('colors')" style="--c:#a29bfe">🎨<br>颜色</button>
@@ -157,7 +156,7 @@
             <button class="lvl-btn" onclick="window.startGame('vehicles')" style="--c:#636e72">🚗<br>交通</button>
             <button class="lvl-btn" onclick="window.startGame('action')" style="--c:#e17055">🏃<br>动作</button>
         </div>
-        <div id="status-msg">🚀 正在加载 AI 模型...</div>
+        <div id="status-msg">🚀 正在加载 AI 模型 (0%)...</div>
     </div>
 
     <!-- HUD -->
@@ -194,9 +193,9 @@
 
     <canvas id="webgl-canvas"></canvas>
 
-    <!-- 核心逻辑：使用 UNPKG 加速的 MediaPipe -->
+    <!-- 核心逻辑：恢复使用 jsdelivr 的正确引用 -->
     <script type="module">
-        import { FilesetResolver, HandLandmarker } from "https://unpkg.com/@mediapipe/tasks-vision@0.10.14/vision_bundle.js";
+        import { FilesetResolver, HandLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/+esm";
 
         // --- 0. 全局变量 ---
         window.THREE = THREE; 
@@ -205,7 +204,7 @@
         let running = false;
         let lastSpawnTime = 0;
         
-        // 词库 (完整)
+        // 词库
         const DB = {
             animals: [{en:'LION',cn:'狮子',i:'🦁',c:0xffa502},{en:'TIGER',cn:'老虎',i:'🐯',c:0xff6348},{en:'CAT',cn:'猫咪',i:'🐱',c:0xff6b6b},{en:'DOG',cn:'小狗',i:'🐶',c:0x54a0ff},{en:'PANDA',cn:'熊猫',i:'🐼',c:0x2f3542},{en:'RABBIT',cn:'兔子',i:'🐰',c:0xffffff},{en:'PIG',cn:'小猪',i:'🐷',c:0xffcccc},{en:'FROG',cn:'青蛙',i:'🐸',c:0x2ecc71},{en:'MONKEY',cn:'猴子',i:'🐵',c:0xd35400}],
             fruits: [{en:'APPLE',cn:'苹果',i:'🍎',c:0xff4757},{en:'BANANA',cn:'香蕉',i:'🍌',c:0xffeaa7},{en:'GRAPE',cn:'葡萄',i:'🍇',c:0xa29bfe},{en:'PEACH',cn:'桃子',i:'🍑',c:0xfdcb6e},{en:'MELON',cn:'甜瓜',i:'🍈',c:0x55efc4},{en:'CHERRY',cn:'樱桃',i:'🍒',c:0xd63031},{en:'ORANGE',cn:'橙子',i:'🍊',c:0xe67e22},{en:'WATERMELON',cn:'西瓜',i:'🍉',c:0x2ecc71}],
@@ -227,18 +226,17 @@
 
         // --- 1. AI 初始化 (本地文件优先) ---
         async function initHandLandmarker() {
-            document.getElementById('debug-bar').innerText = "加载中... 请确保已上传 .task 文件";
+            document.getElementById('debug-bar').innerText = "加载 AI 模型...";
             try {
-                // 使用 unpkg 的 WASM 资源
+                // 使用 jsdelivr 的 WASM 资源 (稳定)
                 const vision = await FilesetResolver.forVisionTasks(
-                    "https://unpkg.com/@mediapipe/tasks-vision@0.10.14/wasm"
+                    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
                 );
                 
-                // 关键点：尝试加载本地模型文件
-                // 如果你没有上传，这步会失败
+                // 尝试加载本地模型 (./hand_landmarker.task)
                 handLandmarker = await HandLandmarker.createFromOptions(vision, {
                     baseOptions: {
-                        modelAssetPath: "./hand_landmarker.task", // 本地路径！
+                        modelAssetPath: "./hand_landmarker.task", 
                         delegate: "CPU"
                     },
                     runningMode: "VIDEO",
@@ -254,9 +252,8 @@
                 
             } catch (error) {
                 console.error(error);
-                document.getElementById('debug-bar').innerText = "AI 失败: 找不到模型文件，请查看说明";
-                // 备用：尝试 Google 链接 (如果用户翻墙了)
-                tryFallbackGoogle();
+                document.getElementById('debug-bar').innerText = "加载本地模型失败，尝试备用源...";
+                tryFallbackGoogle(); // 如果本地文件不存在，尝试远程
             }
         }
 
@@ -273,10 +270,11 @@
                     runningMode: "VIDEO",
                     numHands: 1
                 });
-                document.getElementById('debug-bar').innerText = "备用源加载成功";
+                document.getElementById('debug-bar').innerText = "远程模型加载成功";
+                document.getElementById('status-msg').innerText = "✅ 系统就绪";
                 document.querySelectorAll('.lvl-btn').forEach(b => b.classList.add('active'));
             } catch(e) {
-                document.getElementById('debug-bar').innerText = "彻底失败，请手动下载模型文件";
+                document.getElementById('debug-bar').innerText = "AI 加载彻底失败: " + e.message;
             }
         }
 
@@ -387,13 +385,7 @@
                 try {
                     const results = handLandmarker.detectForVideo(videoElement, performance.now());
                     radarCtx.clearRect(0,0,radarCanvas.width,radarCanvas.height);
-                    // 绘制视频背景
-                    radarCtx.save();
-                    radarCtx.scale(-1, 1);
-                    radarCtx.translate(-radarCanvas.width, 0);
-                    radarCtx.drawImage(videoElement, 0, 0, radarCanvas.width, radarCanvas.height);
-                    radarCtx.restore();
-
+                    
                     if (results.landmarks && results.landmarks.length > 0) {
                         const landmarks = results.landmarks[0];
                         const index = landmarks[8];
@@ -485,7 +477,7 @@
             setTimeout(()=>el.remove(), 1000);
         }
 
-        // --- 5. 全自动跟读逻辑 (V34 Core) ---
+        // --- 5. 全自动跟读逻辑 ---
         const synth = window.speechSynthesis;
         let ttsTimer = null;
         let recTimer = null;
@@ -596,7 +588,7 @@
 
         // --- 6. 摄像头启动 ---
         async function startCamera() {
-            if(!handLandmarker) { alert("AI加载中..."); return; }
+            if(!handLandmarker) { alert("AI模型正在加载，请稍候"); return; }
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
@@ -630,7 +622,11 @@
             }
         }
 
-        window.startGame = (cat) => {
+        // 绑定启动 (全局)
+        window.tryStart = (cat, btn) => {
+            if(!handLandmarker) {
+                btn.style.opacity = 0.5; btn.innerText = "加载中..."; return;
+            }
             currentPool = DB[cat];
             document.getElementById('lobby-screen').style.display = 'none';
             document.getElementById('game-ui').style.display = 'block';
@@ -643,7 +639,6 @@
         };
 
         window.addEventListener('resize', resize);
-        window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
     </script>
 </body>
 </html>
