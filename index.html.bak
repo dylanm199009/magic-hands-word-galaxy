@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Magic Garden V33 (Tablet Fix)</title>
+    <title>Magic Garden V34 (Auto Flow)</title>
     
     <!-- 1. 基础库 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" crossorigin="anonymous"></script>
@@ -17,7 +17,7 @@
             margin: 0; padding: 0; width: 100%; height: 100%; 
             overflow: hidden; font-family: 'Fredoka', sans-serif; 
             background: #87CEEB; touch-action: none; user-select: none;
-            -webkit-user-select: none; /* iOS Safari */
+            -webkit-user-select: none;
         }
 
         #sky-gradient {
@@ -25,7 +25,7 @@
             background: linear-gradient(180deg, #a1c4fd 0%, #c2e9fb 100%);
         }
 
-        /* 调试条 (错误显示) */
+        /* 调试条 */
         #debug-bar {
             position: fixed; top: 0; left: 0; width: 100%; 
             background: rgba(255, 0, 0, 0.8); color: white; 
@@ -45,14 +45,14 @@
         #magic-tree { font-size: clamp(50px, 10vw, 80px); display: block; animation: grow 2s infinite alternate; }
         @keyframes grow { from {transform: scale(1);} to {transform: scale(1.1);} }
 
-        /* 关卡网格 (平板适配) */
+        /* 关卡列表 */
         .level-grid {
             display: grid; 
             grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); 
             gap: 15px; 
             width: 90%; max-width: 700px; max-height: 50vh; 
             overflow-y: auto; padding: 10px;
-            -webkit-overflow-scrolling: touch; /* iOS 滚动流畅 */
+            -webkit-overflow-scrolling: touch;
         }
         .lvl-btn {
             aspect-ratio: 1; border: none; border-radius: 15px; width: 100%;
@@ -74,7 +74,7 @@
         .score-box { font-size: 32px; color: #fdcb6e; font-weight: 900; text-shadow: 2px 2px 0 #d63031; }
         .home-btn { pointer-events: auto; padding: 8px 20px; background: #ff7675; border: none; border-radius: 10px; color: white; font-weight: bold; cursor: pointer; }
 
-        /* 3. 卡片 */
+        /* 3. 卡片 (全自动交互设计) */
         #card-modal {
             position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 30;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -94,20 +94,35 @@
             margin-top: 20px; width: 100%; 
             display: flex; flex-direction: column; align-items: center; justify-content: center; 
         }
-        #mic-btn {
-            width: 70px; height: 70px; border-radius: 50%; border: none; background: #00cec9;
-            font-size: 30px; color: white; cursor: pointer; display: none;
-            box-shadow: 0 0 0 0 rgba(0, 206, 201, 0.7); animation: pulse 1.5s infinite;
-            justify-content: center; align-items: center; display: flex;
+        /* 自动麦克风样式 */
+        #mic-icon {
+            width: 70px; height: 70px; border-radius: 50%; 
+            background: #ccc; /* 默认灰色 */
+            font-size: 30px; color: white; 
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.3s;
         }
-        @keyframes pulse { 70% { box-shadow: 0 0 0 15px rgba(0, 206, 201, 0); } }
+        /* 激活时的呼吸动画 */
+        #mic-icon.listening {
+            background: #00cec9;
+            box-shadow: 0 0 0 0 rgba(0, 206, 201, 0.7);
+            animation: pulse-listen 1.5s infinite;
+        }
+        @keyframes pulse-listen {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(0, 206, 201, 0.7); }
+            70% { transform: scale(1.1); box-shadow: 0 0 0 15px rgba(0, 206, 201, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(0, 206, 201, 0); }
+        }
 
-        /* 4. 摄像头预览 (iPad 核心修复：不移出屏幕) */
-        /* 我们把主视频流放在底层，透明度极低，防止被浏览器冻结 */
+        #timer-bar {
+            width: 0%; height: 4px; background: #00cec9; border-radius: 2px; margin-top: 10px; transition: width 1s linear;
+        }
+
+        /* 4. 摄像头预览 (底层透明) */
         #input-video {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             object-fit: cover; transform: scaleX(-1);
-            opacity: 0.01; /* 几乎透明，但必须可见 */
+            opacity: 0.01; /* 必须可见，但隐藏 */
             z-index: -5; pointer-events: none;
         }
 
@@ -142,7 +157,7 @@
     <div id="lobby-screen">
         <div class="logo">
             <h1>🌸 奇幻花园</h1>
-            <p>V33 平板稳定版</p>
+            <p>V34 全自动免触版</p>
         </div>
         <div class="tree-box">
             <div id="magic-tree">🌳</div>
@@ -169,41 +184,45 @@
         </div>
         <div id="vfx-layer"></div>
         
-        <!-- 卡片 -->
+        <!-- 卡片 (全自动 UI) -->
         <div id="card-modal">
             <div class="card-inner">
                 <div id="c-icon">🍎</div>
                 <h2 id="c-word">APPLE</h2>
                 <h3 style="color:#0984e3; margin:0;" id="c-cn">苹果</h3>
-                <p id="mic-hint" style="color:#888;">🔊 朗读中...</p>
-                <button id="mic-btn" onclick="window.startSpeechRec()">🎙️</button>
-                <br>
-                <button onclick="window.closeCard()" style="background:none; border:none; color:#999; margin-top:15px; text-decoration:underline; cursor:pointer;">跳过</button>
+                
+                <div class="mic-area">
+                    <div id="mic-icon">🎙️</div>
+                    <div id="mic-status" style="margin-top:5px; color:#888; font-size:14px;">准备朗读...</div>
+                    <div style="width:100%; background:#eee; height:4px; border-radius:2px; margin-top:10px;">
+                        <div id="timer-bar"></div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- 视频流 (底层全屏透明) -->
+    <!-- 视频流 -->
     <video id="input-video" playsinline webkit-playsinline muted></video>
     
-    <!-- 调试小窗 (只显示雷达) -->
+    <!-- 调试小窗 -->
     <div id="cam-preview-box">
         <canvas id="radar-canvas"></canvas>
     </div>
 
     <canvas id="webgl-canvas"></canvas>
 
+    <!-- 模块加载 -->
     <script type="module">
         import { FilesetResolver, HandLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/+esm";
 
         // --- 0. 全局变量 ---
         window.THREE = THREE; 
         let handLandmarker = undefined;
-        let lastVideoTime = -1;
         let running = false;
-        let lastSpawnTime = 0;
+        let lastVideoTime = -1;
         
-        // 错误捕获
+        // 错误处理
         function showError(msg) {
             const el = document.getElementById('debug-bar');
             el.style.display = 'block';
@@ -212,7 +231,7 @@
         }
         window.onerror = (e) => showError("System Error: " + e);
 
-        // 词库
+        // 词库 (保持完整)
         const DB = {
             animals: [{en:'LION',cn:'狮子',i:'🦁',c:0xffa502},{en:'TIGER',cn:'老虎',i:'🐯',c:0xff6348},{en:'CAT',cn:'猫咪',i:'🐱',c:0xff6b6b},{en:'DOG',cn:'小狗',i:'🐶',c:0x54a0ff},{en:'PANDA',cn:'熊猫',i:'🐼',c:0x2f3542},{en:'RABBIT',cn:'兔子',i:'🐰',c:0xffffff},{en:'PIG',cn:'小猪',i:'🐷',c:0xffcccc},{en:'FROG',cn:'青蛙',i:'🐸',c:0x2ecc71},{en:'MONKEY',cn:'猴子',i:'🐵',c:0xd35400}],
             fruits: [{en:'APPLE',cn:'苹果',i:'🍎',c:0xff4757},{en:'BANANA',cn:'香蕉',i:'🍌',c:0xffeaa7},{en:'GRAPE',cn:'葡萄',i:'🍇',c:0xa29bfe},{en:'PEACH',cn:'桃子',i:'🍑',c:0xfdcb6e},{en:'MELON',cn:'甜瓜',i:'🍈',c:0x55efc4},{en:'CHERRY',cn:'樱桃',i:'🍒',c:0xd63031},{en:'ORANGE',cn:'橙子',i:'🍊',c:0xe67e22},{en:'WATERMELON',cn:'西瓜',i:'🍉',c:0x2ecc71}],
@@ -231,6 +250,7 @@
         let balloons = [];
         let handTarget = new THREE.Vector3(0,0,0);
         let currentWordData = null;
+        let lastSpawnTime = 0;
 
         // --- 1. AI 初始化 ---
         async function initHandLandmarker() {
@@ -241,7 +261,7 @@
                 handLandmarker = await HandLandmarker.createFromOptions(vision, {
                     baseOptions: {
                         modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
-                        delegate: "CPU" // 强制CPU，兼容平板
+                        delegate: "CPU"
                     },
                     runningMode: "VIDEO",
                     numHands: 1,
@@ -260,9 +280,7 @@
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
-        
-        // 背景透明，透出CSS天空
-        renderer.setClearColor(0x000000, 0);
+        renderer.setClearColor(0x000000, 0); // 透明背景
         
         function resize() {
             camera.aspect = window.innerWidth / window.innerHeight;
@@ -279,7 +297,7 @@
         dl.position.set(5, 10, 5);
         scene.add(dl);
 
-        // 主角 Avatar
+        // 主角
         const avatar = new THREE.Group();
         const body = new THREE.Mesh(new THREE.SphereGeometry(1.2, 32, 32), new THREE.MeshPhongMaterial({color:0xffffff}));
         avatar.add(body);
@@ -343,15 +361,12 @@
                 const p = new THREE.Mesh(geo, mat);
                 p.position.copy(pos);
                 scene.add(p);
-                gsap.to(p.position, { 
-                    x:pos.x+(Math.random()-0.5)*12, y:pos.y+(Math.random()-0.5)*12, z:pos.z+(Math.random()-0.5)*5, 
-                    duration: 1, ease: "power2.out" 
-                });
+                gsap.to(p.position, { x:pos.x+(Math.random()-0.5)*12, y:pos.y+(Math.random()-0.5)*12, z:pos.z+(Math.random()-0.5)*5, duration: 1, ease: "power2.out" });
                 gsap.to(p.scale, { x:0, y:0, z:0, duration: 1, onComplete: ()=>scene.remove(p) });
             }
         }
 
-        // --- 4. 核心循环 (检测+渲染) ---
+        // --- 4. 循环逻辑 ---
         const videoElement = document.getElementById('input-video');
         const radarCtx = document.getElementById('radar-canvas').getContext('2d');
         const radarCanvas = document.getElementById('radar-canvas');
@@ -359,32 +374,22 @@
         async function loop(timestamp) {
             if (!running) return;
 
-            // 1. AI检测
+            // AI 检测
             if (handLandmarker && videoElement.currentTime !== lastVideoTime && !videoElement.paused) {
                 lastVideoTime = videoElement.currentTime;
                 try {
                     const results = handLandmarker.detectForVideo(videoElement, performance.now());
-                    
-                    // 绘制视频帧到底层(可选) + 绿点
                     radarCtx.clearRect(0,0,radarCanvas.width,radarCanvas.height);
-                    // 绘制视频背景以确认有画面
-                    radarCtx.save();
-                    radarCtx.scale(-1, 1);
-                    radarCtx.translate(-radarCanvas.width, 0);
-                    radarCtx.drawImage(videoElement, 0, 0, radarCanvas.width, radarCanvas.height);
-                    radarCtx.restore();
-
+                    
                     if (results.landmarks && results.landmarks.length > 0) {
                         const landmarks = results.landmarks[0];
-                        const index = landmarks[8]; 
+                        const index = landmarks[8];
                         const thumb = landmarks[4];
 
-                        // 绿点
                         radarCtx.fillStyle = '#0f0'; radarCtx.beginPath();
                         radarCtx.arc((1-index.x)*radarCanvas.width, index.y*radarCanvas.height, 8, 0, Math.PI*2);
                         radarCtx.fill();
 
-                        // 坐标映射
                         const rangeX = (camera.aspect * camera.position.z); 
                         const x = (0.5 - index.x) * (rangeX * 2.8); 
                         const y = -(index.y - 0.5) * 35;
@@ -395,13 +400,13 @@
                 } catch(e) {}
             }
 
-            // 2. 气球生成 (时间戳)
+            // 气球生成
             if (!isPaused && timestamp - lastSpawnTime > 1800) {
                 spawnBalloon();
                 lastSpawnTime = timestamp;
             }
 
-            // 3. 动画
+            // 动画
             avatar.position.lerp(handTarget, 0.25);
             avatar.rotation.z = (avatar.position.x - handTarget.x) * -0.15;
             const s = isGrabbing ? 0.8 : 1.0;
@@ -466,80 +471,137 @@
             setTimeout(()=>el.remove(), 1000);
         }
 
-        // --- 5. 语音与卡片 (防卡死) ---
+        // --- 5. 全自动跟读逻辑 (V34 Core) ---
         const synth = window.speechSynthesis;
         let ttsTimer = null;
+        let recTimer = null;
+        let recognition = null;
+
+        // 初始化语音识别 (兼容)
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            recognition.lang = 'en-US';
+            recognition.continuous = false;
+            recognition.interimResults = false;
+        }
 
         function showCard(data) {
             isPaused = true;
             currentWordData = data;
+            
+            // 更新 UI
             document.getElementById('c-icon').innerText = data.i;
             document.getElementById('c-word').innerText = data.en;
             document.getElementById('c-cn').innerText = data.cn;
             document.getElementById('card-modal').classList.add('active');
             
-            document.getElementById('mic-hint').innerText = "🔊 朗读中...";
-            document.getElementById('mic-btn').style.display = 'none';
-            
+            // 状态重置
+            const micIcon = document.getElementById('mic-icon');
+            micIcon.classList.remove('listening');
+            micIcon.style.background = "#ccc";
+            document.getElementById('mic-status').innerText = "🔊 正在朗读...";
+            document.getElementById('timer-bar').style.width = "0%";
+            document.getElementById('timer-bar').style.transition = "none";
+
+            // 1. 朗读单词
             synth.cancel();
             const u = new SpeechSynthesisUtterance(data.en);
             u.lang = 'en-US'; u.rate = 0.9;
             
-            const done = () => {
-                document.getElementById('mic-hint').innerText = "🎤 点击跟读";
-                document.getElementById('mic-btn').style.display = 'flex';
+            // 朗读结束回调 (或超时强制)
+            const startListening = () => {
                 clearTimeout(ttsTimer);
+                autoStartListening();
             };
-            u.onend = done;
-            ttsTimer = setTimeout(done, 1500); // 强制显示
-
+            u.onend = startListening;
+            u.onerror = startListening; 
+            
             synth.speak(u);
+            ttsTimer = setTimeout(startListening, 2000); // 2秒后强制进入跟读
         }
 
-        window.startSpeechRec = () => {
-            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-            document.getElementById('mic-hint').innerText = "👂 正在听...";
-            if(isIOS || !('webkitSpeechRecognition' in window)) {
-                setTimeout(() => { document.getElementById('mic-hint').innerText = "🌟 完美!"; onSuccess(); }, 1000);
-            } else {
-                const Rec = window.webkitSpeechRecognition;
-                const r = new Rec();
-                r.lang = 'en-US'; r.start();
-                r.onresult = (e) => {
-                    const t = e.results[0][0].transcript.toLowerCase();
-                    if(t.includes(currentWordData.en.toLowerCase())) {
-                        document.getElementById('mic-hint').innerText = "🌟 Perfect!"; onSuccess();
-                    } else {
-                        document.getElementById('mic-hint').innerText = "😅 再试一次";
-                    }
-                };
-            }
-        };
+        function autoStartListening() {
+            const micIcon = document.getElementById('mic-icon');
+            const status = document.getElementById('mic-status');
+            const timerBar = document.getElementById('timer-bar');
 
-        function onSuccess() {
-            playSynth('win');
-            spawnExplosion(avatar.position, 0xffff00, 'rainbow');
-            score += 20; document.getElementById('score').innerText = score;
-            setTimeout(() => {
-                document.getElementById('card-modal').classList.remove('active');
-                isPaused = false;
-            }, 1500);
+            // 更新 UI 为“听”的状态
+            status.innerText = "👂 请跟读... (10秒)";
+            micIcon.style.background = "#00cec9";
+            micIcon.classList.add('listening'); // 呼吸动画
+            
+            // 倒计时条动画
+            timerBar.style.width = "100%";
+            timerBar.style.transition = "width 10s linear";
+
+            // 尝试启动真实识别
+            let hasResult = false;
+            
+            if (recognition) {
+                try {
+                    recognition.start();
+                    recognition.onresult = (e) => {
+                        const t = e.results[0][0].transcript.toLowerCase();
+                        if (t.includes(currentWordData.en.toLowerCase())) {
+                            hasResult = true;
+                            finishListening(true, "Perfect!");
+                        }
+                    };
+                    recognition.onerror = () => { /* 忽略错误，等待超时或模拟 */ };
+                } catch(e) {}
+            }
+
+            // 10秒倒计时逻辑 (兼做 iOS 模拟器)
+            // 如果 4秒后 (模拟孩子反应时间) 还没结果，且是 iOS，则自动算对
+            // 如果是 PC，等 10秒超时
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+            const waitTime = isIOS ? 3000 + Math.random() * 2000 : 10000;
+
+            recTimer = setTimeout(() => {
+                if (!hasResult) {
+                    if (isIOS) finishListening(true, "Great! (自动)"); // iOS 自动给过
+                    else finishListening(false, "超时"); // PC 超时跳过
+                }
+            }, waitTime);
+        }
+
+        function finishListening(success, msg) {
+            if (recTimer) clearTimeout(recTimer);
+            if (recognition) try { recognition.stop(); } catch(e){}
+
+            const status = document.getElementById('mic-status');
+            status.innerText = success ? `🌟 ${msg}` : "😅 继续加油";
+            document.getElementById('mic-icon').classList.remove('listening');
+
+            if (success) {
+                playSynth('win');
+                score += 20; document.getElementById('score').innerText = score;
+                spawnExplosion(avatar.position, 0xffff00, 'rainbow');
+            } else {
+                playSynth('pop'); // 失败只有普通音效
+            }
+
+            // 1.5秒后关闭卡片
+            setTimeout(closeCard, 1500);
         }
 
         window.closeCard = () => {
+            if (recTimer) clearTimeout(recTimer);
+            if (recognition) try { recognition.stop(); } catch(e){}
+            
             document.getElementById('card-modal').classList.remove('active');
             isPaused = false;
         };
 
-        // --- 6. 摄像头启动 (宽松策略) ---
+        // --- 6. 摄像头启动 ---
         async function startCamera() {
             if(!handLandmarker) { alert("AI模型正在加载，请稍候"); return; }
             try {
-                // 不强制 facingMode，尝试获取任意相机
-                const constraints = { video: { width: { ideal: 640 }, height: { ideal: 480 } } };
-                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
+                });
                 videoElement.srcObject = stream;
-                
                 videoElement.onloadedmetadata = () => {
                     videoElement.play();
                     radarCanvas.width = videoElement.videoWidth;
@@ -548,7 +610,7 @@
                     requestAnimationFrame(loop);
                 };
             } catch(e) {
-                showError("无法启动相机: " + e.message);
+                showError("相机错误: " + e.message);
             }
         }
 
@@ -568,20 +630,17 @@
             }
         }
 
-        // 绑定启动按钮 (解决点击无反应)
+        // 绑定启动
         window.tryStart = (cat, btn) => {
             if(!handLandmarker) {
-                btn.style.opacity = 0.5;
-                btn.innerText = "加载中...";
-                return;
+                btn.style.opacity = 0.5; btn.innerText = "加载中..."; return;
             }
-            
             currentPool = DB[cat];
             document.getElementById('lobby-screen').style.display = 'none';
             document.getElementById('game-ui').style.display = 'block';
             
             audioCtx.resume();
-            const u = new SpeechSynthesisUtterance('');
+            const u = new SpeechSynthesisUtterance(''); // 预热TTS
             synth.speak(u);
 
             startCamera();
