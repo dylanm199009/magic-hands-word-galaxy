@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Magic Garden V39 (TTS Fixed)</title>
+    <title>Magic Garden V40 (CN Ultimate)</title>
     
     <!-- 1. 基础库 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" crossorigin="anonymous"></script>
@@ -67,7 +67,7 @@
         #status-msg { margin-top: 20px; color: #888; font-size: 14px; animation: blink 1s infinite; }
         @keyframes blink { 50% { opacity: 0.5; } }
 
-        /* 手动上传区域 */
+        /* 手动上传区域 (V38 回归) */
         #manual-upload {
             display: none; margin-top: 20px; text-align: center;
             background: #fff0f0; padding: 15px; border-radius: 10px; border: 2px dashed #ff7675;
@@ -110,8 +110,8 @@
             justify-content: center; align-items: center; display: flex;
         }
         @keyframes pulse { 70% { box-shadow: 0 0 0 15px rgba(0, 206, 201, 0); } }
-        /* 进度条动画时间调整为 5s */
-        #timer-bar { width: 0%; height: 4px; background: #00cec9; border-radius: 2px; margin-top: 10px; }
+        /* 进度条 5s */
+        #timer-bar { width: 0%; height: 4px; background: #00cec9; border-radius: 2px; margin-top: 10px; transition: width 1s linear; }
 
         /* 4. 摄像头 & 雷达 */
         #cam-container {
@@ -141,14 +141,14 @@
     </style>
 </head>
 <body>
-    <div id="debug-bar">初始化系统 (V39 TTS修复)...</div>
+    <div id="debug-bar">初始化系统 (V40 CN)...</div>
     <div id="sky-gradient"></div>
 
     <!-- 大厅 -->
     <div id="lobby-screen">
         <div class="logo">
             <h1>🌸 奇幻花园</h1>
-            <p>V39 语音复活版</p>
+            <p>V40 国行终极版</p>
         </div>
         <div class="tree-box">
             <div id="magic-tree">🌳</div>
@@ -167,9 +167,9 @@
         
         <div id="status-msg">🚀 正在加载 AI 模型...</div>
 
-        <!-- 备用上传 -->
+        <!-- V38功能回归：手动上传 -->
         <div id="manual-upload">
-            <p style="color:#d63031; font-weight:bold;">⚠️ 加载超时</p>
+            <p style="color:#d63031; font-weight:bold;">⚠️ 加载超时 (无VPN?)</p>
             <p style="font-size:12px;">请手动选择 <b>hand_landmarker.task</b></p>
             <input type="file" id="file-input" accept=".task">
         </div>
@@ -193,7 +193,6 @@
                 <div class="mic-area">
                     <div id="mic-icon">🎙️</div>
                     <div id="mic-status" style="margin-top:5px; color:#888; font-size:14px;">准备朗读...</div>
-                    <!-- 进度条容器 -->
                     <div style="width:100%; background:#eee; height:4px; border-radius:2px; margin-top:10px;">
                         <div id="timer-bar"></div>
                     </div>
@@ -212,12 +211,11 @@
 
     <!-- 核心逻辑 -->
     <script type="module">
-        // 尝试使用 unpkg 镜像加载 MediaPipe
         import { FilesetResolver, HandLandmarker } from "https://unpkg.com/@mediapipe/tasks-vision@0.10.14/vision_bundle.js";
 
         // --- 0. 全局变量 ---
         window.THREE = THREE; 
-        window.currentUtterance = null; // TTS 防回收句柄
+        window.currentUtterance = null; // TTS 防回收
         let handLandmarker = undefined;
         let lastVideoTime = -1;
         let running = false;
@@ -230,7 +228,7 @@
         }
         window.onerror = (e) => showError("Err: " + e);
 
-        // 词库 (保持完整)
+        // 词库 (保留海量)
         const DB = {
             animals: [{en:'LION',cn:'狮子',i:'🦁',c:0xffa502},{en:'TIGER',cn:'老虎',i:'🐯',c:0xff6348},{en:'CAT',cn:'猫咪',i:'🐱',c:0xff6b6b},{en:'DOG',cn:'小狗',i:'🐶',c:0x54a0ff},{en:'PANDA',cn:'熊猫',i:'🐼',c:0x2f3542},{en:'RABBIT',cn:'兔子',i:'🐰',c:0xffffff},{en:'PIG',cn:'小猪',i:'🐷',c:0xffcccc},{en:'FROG',cn:'青蛙',i:'🐸',c:0x2ecc71},{en:'MONKEY',cn:'猴子',i:'🐵',c:0xd35400}],
             fruits: [{en:'APPLE',cn:'苹果',i:'🍎',c:0xff4757},{en:'BANANA',cn:'香蕉',i:'🍌',c:0xffeaa7},{en:'GRAPE',cn:'葡萄',i:'🍇',c:0xa29bfe},{en:'PEACH',cn:'桃子',i:'🍑',c:0xfdcb6e},{en:'MELON',cn:'甜瓜',i:'🍈',c:0x55efc4},{en:'CHERRY',cn:'樱桃',i:'🍒',c:0xd63031},{en:'ORANGE',cn:'橙子',i:'🍊',c:0xe67e22},{en:'WATERMELON',cn:'西瓜',i:'🍉',c:0x2ecc71}],
@@ -250,29 +248,24 @@
         let handTarget = new THREE.Vector3(0,0,0);
         let currentWordData = null;
 
-        // --- 1. AI 初始化 (本地/CDN) ---
+        // --- 1. AI 初始化 (V38 加载防线) ---
         async function initHandLandmarker() {
-            document.getElementById('debug-bar').innerText = "加载 AI...";
+            document.getElementById('debug-bar').innerText = "加载 AI 中...";
             try {
+                // 使用 unpkg
                 const vision = await FilesetResolver.forVisionTasks(
                     "https://unpkg.com/@mediapipe/tasks-vision@0.10.14/wasm"
                 );
                 
+                // 优先尝试本地文件
                 try {
-                    // 1. 尝试本地模型
                     await createModel(vision, "./hand_landmarker.task");
                     onModelLoaded();
-                } catch(e) { 
-                    console.log("本地模型失败，尝试CDN...");
-                    // 2. 尝试 Google CDN (需翻墙，作为备用)
-                    try {
-                        await createModel(vision, "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task");
-                        onModelLoaded();
-                    } catch(err) {
-                        showError("模型加载失败，请手动上传");
-                        document.getElementById('manual-upload').style.display = 'block';
-                        document.getElementById('status-msg').style.display = 'none';
-                    }
+                } catch(e) {
+                    console.log("本地加载失败，等待手动上传或尝试远程...");
+                    showError("模型加载失败，请手动上传文件");
+                    document.getElementById('manual-upload').style.display = 'block';
+                    document.getElementById('status-msg').style.display = 'none';
                 }
             } catch (error) {
                 showError("AI环境错误: " + error.message);
@@ -283,7 +276,7 @@
             handLandmarker = await HandLandmarker.createFromOptions(vision, {
                 baseOptions: {
                     modelAssetPath: pathOrUrl,
-                    delegate: "CPU" // 强制CPU
+                    delegate: "CPU" // 强制CPU兼容
                 },
                 runningMode: "VIDEO",
                 numHands: 1,
@@ -295,18 +288,22 @@
 
         function onModelLoaded() {
             document.getElementById('debug-bar').innerText = "AI 成功!";
-            document.getElementById('status-msg').innerText = "✅ 就绪，请选择关卡";
+            document.getElementById('status-msg').innerText = "✅ 系统就绪，请点击关卡";
             document.querySelectorAll('.lvl-btn').forEach(b => b.classList.add('active'));
             document.getElementById('manual-upload').style.display = 'none';
         }
 
+        // 手动上传监听
         document.getElementById('file-input').addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if(file) {
+                document.getElementById('debug-bar').innerText = "读取本地文件...";
                 const url = URL.createObjectURL(file);
-                const vision = await FilesetResolver.forVisionTasks("https://unpkg.com/@mediapipe/tasks-vision@0.10.14/wasm");
-                await createModel(vision, url);
-                onModelLoaded();
+                try {
+                    const vision = await FilesetResolver.forVisionTasks("https://unpkg.com/@mediapipe/tasks-vision@0.10.14/wasm");
+                    await createModel(vision, url);
+                    onModelLoaded();
+                } catch(err) { alert("文件错误: " + err); }
             }
         });
 
@@ -417,11 +414,10 @@
                 try {
                     const results = handLandmarker.detectForVideo(videoElement, performance.now());
                     radarCtx.clearRect(0,0,radarCanvas.width,radarCanvas.height);
-                    // 绘制视频背景
                     radarCtx.save();
                     radarCtx.scale(-1, 1);
                     radarCtx.translate(-radarCanvas.width, 0);
-                    radarCtx.drawImage(videoElement, 0, 0, radarCanvas.width, radarCanvas.height);
+                    if (results.image) radarCtx.drawImage(results.image, 0, 0, radarCanvas.width, radarCanvas.height);
                     radarCtx.restore();
 
                     if (results.landmarks && results.landmarks.length > 0) {
@@ -514,7 +510,7 @@
             setTimeout(()=>el.remove(), 1000);
         }
 
-        // --- 5. 自动跟读 (TTS 修复 + 5秒超时) ---
+        // --- 5. 语音跟读 (V39 TTS修复) ---
         const synth = window.speechSynthesis;
         let ttsTimer = null;
         let recTimer = null;
@@ -537,7 +533,7 @@
             document.getElementById('c-cn').innerText = data.cn;
             document.getElementById('card-modal').classList.add('active');
             
-            // 重置状态
+            // 重置UI
             const micIcon = document.getElementById('mic-icon');
             micIcon.classList.remove('listening');
             micIcon.style.background = "#ccc";
@@ -546,7 +542,7 @@
             timerBar.style.width = "0%";
             timerBar.style.transition = "none";
 
-            // 朗读
+            // TTS 朗读
             synth.cancel();
             const u = new SpeechSynthesisUtterance(data.en);
             u.lang = 'en-US'; u.rate = 0.9;
@@ -561,7 +557,7 @@
             u.onerror = startListening; 
             
             synth.speak(u);
-            // 2秒保底：如果TTS没反应，强制进入跟读
+            // 2秒保底：防止 TTS 卡死
             clearTimeout(ttsTimer);
             ttsTimer = setTimeout(startListening, 2000);
         }
@@ -575,11 +571,8 @@
             micIcon.style.background = "#00cec9";
             micIcon.classList.add('listening'); 
             
-            // 5秒进度条动画
-            setTimeout(() => {
-                timerBar.style.width = "100%";
-                timerBar.style.transition = "width 5s linear";
-            }, 10);
+            timerBar.style.width = "100%";
+            timerBar.style.transition = "width 5s linear";
 
             let hasResult = false;
             
@@ -597,7 +590,6 @@
             }
 
             const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-            // 5秒倒计时
             recTimer = setTimeout(() => {
                 if (!hasResult) {
                     if (isIOS) finishListening(true, "Great! (自动)"); 
@@ -672,12 +664,10 @@
             currentPool = DB[cat];
             document.getElementById('lobby-screen').style.display = 'none';
             document.getElementById('game-ui').style.display = 'block';
-            
             audioCtx.resume();
             const u = new SpeechSynthesisUtterance('Start');
             window.currentUtterance = u;
             synth.speak(u);
-
             startCamera();
         };
 
