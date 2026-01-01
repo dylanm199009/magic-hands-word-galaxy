@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Magic Garden V38 (Loader Fix)</title>
+    <title>Magic Garden V39 (TTS Fixed)</title>
     
     <!-- 1. 基础库 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" crossorigin="anonymous"></script>
@@ -16,7 +16,7 @@
         body, html { 
             margin: 0; padding: 0; width: 100%; height: 100%; 
             overflow: hidden; font-family: 'Fredoka', sans-serif; 
-            background: #222; touch-action: none; user-select: none;
+            background: #87CEEB; touch-action: none; user-select: none;
         }
 
         #sky-gradient {
@@ -29,7 +29,7 @@
             position: fixed; top: 0; left: 0; width: 100%; 
             background: rgba(0,0,0,0.8); color: #0f0; 
             font-size: 11px; padding: 5px; z-index: 99999; text-align: center;
-            pointer-events: none; white-space: pre-wrap;
+            pointer-events: none;
         }
 
         /* 1. 大厅 */
@@ -44,7 +44,7 @@
         #magic-tree { font-size: clamp(50px, 10vw, 80px); display: block; animation: grow 2s infinite alternate; }
         @keyframes grow { from {transform: scale(1);} to {transform: scale(1.1);} }
 
-        /* 关卡列表 */
+        /* 关卡网格 */
         .level-grid {
             display: grid; 
             grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); 
@@ -67,7 +67,7 @@
         #status-msg { margin-top: 20px; color: #888; font-size: 14px; animation: blink 1s infinite; }
         @keyframes blink { 50% { opacity: 0.5; } }
 
-        /* 手动上传区域 (备用方案) */
+        /* 手动上传区域 */
         #manual-upload {
             display: none; margin-top: 20px; text-align: center;
             background: #fff0f0; padding: 15px; border-radius: 10px; border: 2px dashed #ff7675;
@@ -110,7 +110,8 @@
             justify-content: center; align-items: center; display: flex;
         }
         @keyframes pulse { 70% { box-shadow: 0 0 0 15px rgba(0, 206, 201, 0); } }
-        #timer-bar { width: 0%; height: 4px; background: #00cec9; border-radius: 2px; margin-top: 10px; transition: width 1s linear; }
+        /* 进度条动画时间调整为 5s */
+        #timer-bar { width: 0%; height: 4px; background: #00cec9; border-radius: 2px; margin-top: 10px; }
 
         /* 4. 摄像头 & 雷达 */
         #cam-container {
@@ -140,14 +141,14 @@
     </style>
 </head>
 <body>
-    <div id="debug-bar">初始化系统 (V38)...</div>
+    <div id="debug-bar">初始化系统 (V39 TTS修复)...</div>
     <div id="sky-gradient"></div>
 
     <!-- 大厅 -->
     <div id="lobby-screen">
         <div class="logo">
             <h1>🌸 奇幻花园</h1>
-            <p>V38 防弹加载版</p>
+            <p>V39 语音复活版</p>
         </div>
         <div class="tree-box">
             <div id="magic-tree">🌳</div>
@@ -164,12 +165,12 @@
             <button class="lvl-btn" onclick="window.startGame('action')" style="--c:#e17055">🏃<br>动作</button>
         </div>
         
-        <div id="status-msg">🚀 正在尝试加载 AI 模型...</div>
+        <div id="status-msg">🚀 正在加载 AI 模型...</div>
 
-        <!-- 终极备用方案：手动上传 -->
+        <!-- 备用上传 -->
         <div id="manual-upload">
-            <p style="color:#d63031; font-weight:bold;">⚠️ 自动加载失败</p>
-            <p style="font-size:12px;">请手动选择 <b>hand_landmarker.task</b> 文件</p>
+            <p style="color:#d63031; font-weight:bold;">⚠️ 加载超时</p>
+            <p style="font-size:12px;">请手动选择 <b>hand_landmarker.task</b></p>
             <input type="file" id="file-input" accept=".task">
         </div>
     </div>
@@ -192,6 +193,7 @@
                 <div class="mic-area">
                     <div id="mic-icon">🎙️</div>
                     <div id="mic-status" style="margin-top:5px; color:#888; font-size:14px;">准备朗读...</div>
+                    <!-- 进度条容器 -->
                     <div style="width:100%; background:#eee; height:4px; border-radius:2px; margin-top:10px;">
                         <div id="timer-bar"></div>
                     </div>
@@ -210,10 +212,12 @@
 
     <!-- 核心逻辑 -->
     <script type="module">
-        import { FilesetResolver, HandLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/+esm";
+        // 尝试使用 unpkg 镜像加载 MediaPipe
+        import { FilesetResolver, HandLandmarker } from "https://unpkg.com/@mediapipe/tasks-vision@0.10.14/vision_bundle.js";
 
         // --- 0. 全局变量 ---
         window.THREE = THREE; 
+        window.currentUtterance = null; // TTS 防回收句柄
         let handLandmarker = undefined;
         let lastVideoTime = -1;
         let running = false;
@@ -221,9 +225,7 @@
         
         // 错误处理
         function showError(msg) {
-            const el = document.getElementById('debug-bar');
-            el.style.display = 'block';
-            el.innerText = msg;
+            document.getElementById('debug-bar').innerText = msg;
             console.error(msg);
         }
         window.onerror = (e) => showError("Err: " + e);
@@ -248,34 +250,30 @@
         let handTarget = new THREE.Vector3(0,0,0);
         let currentWordData = null;
 
-        // --- 1. AI 初始化 (四重保障) ---
+        // --- 1. AI 初始化 (本地/CDN) ---
         async function initHandLandmarker() {
+            document.getElementById('debug-bar').innerText = "加载 AI...";
             try {
                 const vision = await FilesetResolver.forVisionTasks(
-                    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
+                    "https://unpkg.com/@mediapipe/tasks-vision@0.10.14/wasm"
                 );
                 
-                // 策略：按顺序尝试加载模型
-                // 1. 本地文件
                 try {
+                    // 1. 尝试本地模型
                     await createModel(vision, "./hand_landmarker.task");
                     onModelLoaded();
-                    return;
-                } catch(e) { console.log("本地加载失败，尝试CDN..."); }
-
-                // 2. 国内友好 CDN (GitHub Mirror)
-                // 这里使用一个通用的公共镜像，或者回退到 Google
-                try {
-                    await createModel(vision, "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task");
-                    onModelLoaded();
-                    return;
-                } catch(e) { console.log("Google源失败..."); }
-
-                // 3. 失败：显示手动上传
-                showError("模型加载失败，请手动选择文件");
-                document.getElementById('manual-upload').style.display = 'block';
-                document.getElementById('status-msg').style.display = 'none';
-
+                } catch(e) { 
+                    console.log("本地模型失败，尝试CDN...");
+                    // 2. 尝试 Google CDN (需翻墙，作为备用)
+                    try {
+                        await createModel(vision, "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task");
+                        onModelLoaded();
+                    } catch(err) {
+                        showError("模型加载失败，请手动上传");
+                        document.getElementById('manual-upload').style.display = 'block';
+                        document.getElementById('status-msg').style.display = 'none';
+                    }
+                }
             } catch (error) {
                 showError("AI环境错误: " + error.message);
             }
@@ -285,7 +283,7 @@
             handLandmarker = await HandLandmarker.createFromOptions(vision, {
                 baseOptions: {
                     modelAssetPath: pathOrUrl,
-                    delegate: "CPU"
+                    delegate: "CPU" // 强制CPU
                 },
                 runningMode: "VIDEO",
                 numHands: 1,
@@ -296,26 +294,19 @@
         }
 
         function onModelLoaded() {
-            document.getElementById('debug-bar').innerText = "AI 加载成功!";
-            document.getElementById('status-msg').innerText = "✅ 系统就绪，请点击关卡";
+            document.getElementById('debug-bar').innerText = "AI 成功!";
+            document.getElementById('status-msg').innerText = "✅ 就绪，请选择关卡";
             document.querySelectorAll('.lvl-btn').forEach(b => b.classList.add('active'));
             document.getElementById('manual-upload').style.display = 'none';
         }
 
-        // 手动上传处理
         document.getElementById('file-input').addEventListener('change', async (e) => {
             const file = e.target.files[0];
-            if(!file) return;
-            
-            const url = URL.createObjectURL(file);
-            document.getElementById('debug-bar').innerText = "正在读取本地文件...";
-            
-            try {
-                const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm");
+            if(file) {
+                const url = URL.createObjectURL(file);
+                const vision = await FilesetResolver.forVisionTasks("https://unpkg.com/@mediapipe/tasks-vision@0.10.14/wasm");
                 await createModel(vision, url);
                 onModelLoaded();
-            } catch(err) {
-                alert("文件无效，请确保是 hand_landmarker.task");
             }
         });
 
@@ -426,10 +417,11 @@
                 try {
                     const results = handLandmarker.detectForVideo(videoElement, performance.now());
                     radarCtx.clearRect(0,0,radarCanvas.width,radarCanvas.height);
+                    // 绘制视频背景
                     radarCtx.save();
                     radarCtx.scale(-1, 1);
                     radarCtx.translate(-radarCanvas.width, 0);
-                    if (results.image) radarCtx.drawImage(results.image, 0, 0, radarCanvas.width, radarCanvas.height);
+                    radarCtx.drawImage(videoElement, 0, 0, radarCanvas.width, radarCanvas.height);
                     radarCtx.restore();
 
                     if (results.landmarks && results.landmarks.length > 0) {
@@ -522,7 +514,7 @@
             setTimeout(()=>el.remove(), 1000);
         }
 
-        // --- 5. 全自动跟读逻辑 ---
+        // --- 5. 自动跟读 (TTS 修复 + 5秒超时) ---
         const synth = window.speechSynthesis;
         let ttsTimer = null;
         let recTimer = null;
@@ -545,25 +537,32 @@
             document.getElementById('c-cn').innerText = data.cn;
             document.getElementById('card-modal').classList.add('active');
             
+            // 重置状态
             const micIcon = document.getElementById('mic-icon');
             micIcon.classList.remove('listening');
             micIcon.style.background = "#ccc";
             document.getElementById('mic-status').innerText = "🔊 正在朗读...";
-            document.getElementById('timer-bar').style.width = "0%";
-            document.getElementById('timer-bar').style.transition = "none";
+            const timerBar = document.getElementById('timer-bar');
+            timerBar.style.width = "0%";
+            timerBar.style.transition = "none";
 
+            // 朗读
             synth.cancel();
             const u = new SpeechSynthesisUtterance(data.en);
             u.lang = 'en-US'; u.rate = 0.9;
-            
+            window.currentUtterance = u; // 防GC
+
             const startListening = () => {
                 clearTimeout(ttsTimer);
                 autoStartListening();
             };
+            
             u.onend = startListening;
             u.onerror = startListening; 
             
             synth.speak(u);
+            // 2秒保底：如果TTS没反应，强制进入跟读
+            clearTimeout(ttsTimer);
             ttsTimer = setTimeout(startListening, 2000);
         }
 
@@ -572,12 +571,15 @@
             const status = document.getElementById('mic-status');
             const timerBar = document.getElementById('timer-bar');
 
-            status.innerText = "👂 请跟读... (10秒)";
+            status.innerText = "👂 请跟读... (5秒)";
             micIcon.style.background = "#00cec9";
             micIcon.classList.add('listening'); 
             
-            timerBar.style.width = "100%";
-            timerBar.style.transition = "width 10s linear";
+            // 5秒进度条动画
+            setTimeout(() => {
+                timerBar.style.width = "100%";
+                timerBar.style.transition = "width 5s linear";
+            }, 10);
 
             let hasResult = false;
             
@@ -595,14 +597,13 @@
             }
 
             const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-            const waitTime = isIOS ? 3000 + Math.random() * 2000 : 10000;
-
+            // 5秒倒计时
             recTimer = setTimeout(() => {
                 if (!hasResult) {
                     if (isIOS) finishListening(true, "Great! (自动)"); 
                     else finishListening(false, "超时");
                 }
-            }, waitTime);
+            }, 5000);
         }
 
         function finishListening(success, msg) {
@@ -633,7 +634,7 @@
 
         // --- 6. 摄像头启动 ---
         async function startCamera() {
-            if(!handLandmarker) { alert("AI加载中..."); return; }
+            if(!handLandmarker) { alert("AI模型正在加载，请稍候"); return; }
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
@@ -671,9 +672,12 @@
             currentPool = DB[cat];
             document.getElementById('lobby-screen').style.display = 'none';
             document.getElementById('game-ui').style.display = 'block';
+            
             audioCtx.resume();
-            const u = new SpeechSynthesisUtterance('');
+            const u = new SpeechSynthesisUtterance('Start');
+            window.currentUtterance = u;
             synth.speak(u);
+
             startCamera();
         };
 
