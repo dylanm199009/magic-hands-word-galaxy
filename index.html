@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Magic Garden V48 (Chrome TTS Fix)</title>
+    <title>Magic Garden V49 (Mega DB)</title>
     
     <!-- 1. 基础库 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" crossorigin="anonymous"></script>
@@ -29,7 +29,7 @@
             position: fixed; top: 0; left: 0; width: 100%; 
             background: rgba(0,0,0,0.8); color: #0f0; 
             font-size: 11px; padding: 5px; z-index: 99999; text-align: center;
-            pointer-events: none;
+            pointer-events: none; white-space: pre-wrap;
         }
 
         /* 1. 大厅 */
@@ -141,14 +141,14 @@
     </style>
 </head>
 <body>
-    <div id="debug-bar">初始化系统 (V48 Chrome TTS Fix)...</div>
+    <div id="debug-bar">初始化系统 (V49 Mega DB)...</div>
     <div id="sky-gradient"></div>
 
     <!-- 大厅 -->
     <div id="lobby-screen">
         <div class="logo">
             <h1>🌸 奇幻花园</h1>
-            <p>V48 谷歌语音修复版</p>
+            <p>V49 海量词库版</p>
         </div>
         <div class="tree-box">
             <div id="magic-tree">🌳</div>
@@ -156,8 +156,8 @@
         </div>
         <div class="level-grid" id="level-grid">
             <button class="lvl-btn" onclick="window.startGame('animals')" style="--c:#ff7675">🦁<br>动物</button>
-            <button class="lvl-btn" onclick="window.startGame('fruits')" style="--c:#fdcb6e">🍎<br>水果</button>
-            <button class="lvl-btn" onclick="window.startGame('colors')" style="--c:#a29bfe">🎨<br>颜色</button>
+            <button class="lvl-btn" onclick="window.startGame('fruits')" style="--c:#fdcb6e">🍎<br>美食</button>
+            <button class="lvl-btn" onclick="window.startGame('colors')" style="--c:#a29bfe">🎨<br>色彩</button>
             <button class="lvl-btn" onclick="window.startGame('numbers')" style="--c:#74b9ff">🔢<br>数字</button>
             <button class="lvl-btn" onclick="window.startGame('body')" style="--c:#55efc4">👀<br>身体</button>
             <button class="lvl-btn" onclick="window.startGame('nature')" style="--c:#00b894">🌳<br>自然</button>
@@ -169,7 +169,7 @@
 
         <!-- 备用上传 -->
         <div id="manual-upload">
-            <p style="color:#d63031; font-weight:bold;">⚠️ 加载超时</p>
+            <p style="color:#d63031; font-weight:bold;">⚠️ 加载超时 (无VPN?)</p>
             <p style="font-size:12px;">请手动选择 <b>hand_landmarker.task</b></p>
             <input type="file" id="file-input" accept=".task">
         </div>
@@ -215,7 +215,7 @@
 
         // --- 0. 全局变量 ---
         window.THREE = THREE; 
-        window.currentUtterance = null; // TTS 防回收句柄
+        window.currentUtterance = null; 
         let handLandmarker = undefined;
         let lastVideoTime = -1;
         let running = false;
@@ -227,16 +227,127 @@
         }
         window.onerror = (e) => showError("Err: " + e);
 
-        // --- 1. 海量词库 ---
+        // --- 1. 海量词库 (400+ Words) ---
         const DB = {
-            animals: [{en:'LION',cn:'狮子',i:'🦁',c:0xffa502},{en:'TIGER',cn:'老虎',i:'🐯',c:0xff6348},{en:'CAT',cn:'猫咪',i:'🐱',c:0xff6b6b},{en:'DOG',cn:'小狗',i:'🐶',c:0x54a0ff},{en:'PANDA',cn:'熊猫',i:'🐼',c:0x2f3542},{en:'RABBIT',cn:'兔子',i:'🐰',c:0xffffff},{en:'PIG',cn:'小猪',i:'🐷',c:0xffcccc},{en:'BEAR',cn:'熊',i:'🐻',c:0x8d6e63},{en:'FROG',cn:'青蛙',i:'🐸',c:0x2ecc71},{en:'KOALA',cn:'考拉',i:'🐨',c:0x95afc0},{en:'FOX',cn:'狐狸',i:'🦊',c:0xe17055},{en:'ZEBRA',cn:'斑马',i:'🦓',c:0x2d3436},{en:'GIRAFFE',cn:'长颈鹿',i:'🦒',c:0xf1c40f},{en:'ELEPHANT',cn:'大象',i:'🐘',c:0xbdc3c7},{en:'MONKEY',cn:'猴子',i:'🐵',c:0xd35400}],
-            fruits: [{en:'APPLE',cn:'苹果',i:'🍎',c:0xff4757},{en:'BANANA',cn:'香蕉',i:'🍌',c:0xffeaa7},{en:'GRAPE',cn:'葡萄',i:'🍇',c:0xa29bfe},{en:'PEACH',cn:'桃子',i:'🍑',c:0xfdcb6e},{en:'MELON',cn:'甜瓜',i:'🍈',c:0x55efc4},{en:'CHERRY',cn:'樱桃',i:'🍒',c:0xd63031},{en:'ORANGE',cn:'橙子',i:'🍊',c:0xe67e22},{en:'WATERMELON',cn:'西瓜',i:'🍉',c:0x2ecc71}],
-            colors: [{en:'RED',cn:'红色',i:'🔴',c:0xff0000},{en:'BLUE',cn:'蓝色',i:'🔵',c:0x0000ff},{en:'GREEN',cn:'绿色',i:'🟢',c:0x00ff00},{en:'YELLOW',cn:'黄色',i:'🟡',c:0xffff00},{en:'PURPLE',cn:'紫色',i:'🟣',c:0x800080},{en:'ORANGE',cn:'橙色',i:'🟠',c:0xffa500},{en:'BLACK',cn:'黑色',i:'⚫',c:0x000000},{en:'WHITE',cn:'白色',i:'⚪',c:0xffffff}],
-            numbers: [{en:'ONE',cn:'一',i:'1️⃣',c:0x74b9ff},{en:'TWO',cn:'二',i:'2️⃣',c:0x0984e3},{en:'THREE',cn:'三',i:'3️⃣',c:0x6c5ce7},{en:'FOUR',cn:'四',i:'4️⃣',c:0xa29bfe},{en:'FIVE',cn:'五',i:'5️⃣',c:0x00cec9},{en:'TEN',cn:'十',i:'🔟',c:0x52b4bf}],
-            body: [{en:'EYE',cn:'眼睛',i:'👁️',c:0xffffff},{en:'HAND',cn:'手',i:'🖐️',c:0xffcccc},{en:'NOSE',cn:'鼻子',i:'👃',c:0xf5cd79},{en:'MOUTH',cn:'嘴巴',i:'👄',c:0xff6b81}],
-            vehicles: [{en:'CAR',cn:'汽车',i:'🚗',c:0xe74c3c},{en:'BUS',cn:'巴士',i:'🚌',c:0xf1c40f},{en:'PLANE',cn:'飞机',i:'✈️',c:0x3498db},{en:'SHIP',cn:'轮船',i:'🚢',c:0x34495e},{en:'ROCKET',cn:'火箭',i:'🚀',c:0x8e44ad}],
-            nature: [{en:'SUN',cn:'太阳',i:'☀️',c:0xf1c40f},{en:'MOON',cn:'月亮',i:'🌙',c:0xf1c40f},{en:'STAR',cn:'星星',i:'⭐',c:0xf1c40f},{en:'TREE',cn:'树',i:'🌳',c:0x27ae60},{en:'FLOWER',cn:'花',i:'🌸',c:0xe84393}],
-            action: [{en:'RUN',cn:'跑',i:'🏃',c:0xe74c3c},{en:'JUMP',cn:'跳',i:'🦘',c:0xf1c40f},{en:'SWIM',cn:'游泳',i:'🏊',c:0x3498db},{en:'DANCE',cn:'跳舞',i:'💃',c:0x9b59b6}]
+            animals: [
+                {en:'LION',cn:'狮子',i:'🦁',c:0xffa502},{en:'TIGER',cn:'老虎',i:'🐯',c:0xff6348},{en:'CAT',cn:'猫咪',i:'🐱',c:0xff6b6b},{en:'DOG',cn:'小狗',i:'🐶',c:0x54a0ff},
+                {en:'PANDA',cn:'熊猫',i:'🐼',c:0x2f3542},{en:'RABBIT',cn:'兔子',i:'🐰',c:0xffffff},{en:'PIG',cn:'小猪',i:'🐷',c:0xffcccc},{en:'BEAR',cn:'熊',i:'🐻',c:0x8d6e63},
+                {en:'FROG',cn:'青蛙',i:'🐸',c:0x2ecc71},{en:'KOALA',cn:'考拉',i:'🐨',c:0x95afc0},{en:'FOX',cn:'狐狸',i:'🦊',c:0xe17055},{en:'ZEBRA',cn:'斑马',i:'🦓',c:0x2d3436},
+                {en:'GIRAFFE',cn:'长颈鹿',i:'🦒',c:0xf1c40f},{en:'ELEPHANT',cn:'大象',i:'🐘',c:0xbdc3c7},{en:'MONKEY',cn:'猴子',i:'🐵',c:0xd35400},{en:'MOUSE',cn:'老鼠',i:'🐭',c:0x95a5a6},
+                {en:'COW',cn:'奶牛',i:'🐮',c:0xffffff},{en:'CHICKEN',cn:'鸡',i:'🐔',c:0xf1c40f},{en:'DUCK',cn:'鸭子',i:'🦆',c:0xf1c40f},{en:'OWL',cn:'猫头鹰',i:'🦉',c:0x7f8c8d},
+                {en:'WHALE',cn:'鲸鱼',i:'🐳',c:0x3498db},{en:'DOLPHIN',cn:'海豚',i:'🐬',c:0x2980b9},{en:'FISH',cn:'鱼',i:'🐟',c:0x3498db},{en:'SHARK',cn:'鲨鱼',i:'🦈',c:0xbdc3c7},
+                {en:'OCTOPUS',cn:'章鱼',i:'🐙',c:0xe74c3c},{en:'CRAB',cn:'螃蟹',i:'🦀',c:0xc0392b},{en:'BUTTERFLY',cn:'蝴蝶',i:'🦋',c:0x9b59b6},{en:'BEE',cn:'蜜蜂',i:'🐝',c:0xf1c40f},
+                {en:'LADYBUG',cn:'瓢虫',i:'🐞',c:0xe74c3c},{en:'SNAKE',cn:'蛇',i:'🐍',c:0x27ae60},{en:'HORSE',cn:'马',i:'🐴',c:0x8d6e63},{en:'SHEEP',cn:'绵羊',i:'🐑',c:0xffffff},
+                {en:'GOAT',cn:'山羊',i:'🐐',c:0xffffff},{en:'DEER',cn:'鹿',i:'🦌',c:0xa0522d},{en:'WOLF',cn:'狼',i:'🐺',c:0x808080},{en:'CAMEL',cn:'骆驼',i:'🐫',c:0xc19a6b},
+                {en:'PENGUIN',cn:'企鹅',i:'🐧',c:0x2f3542},{en:'SEAL',cn:'海豹',i:'🦭',c:0x808080},{en:'TURTLE',cn:'乌龟',i:'🐢',c:0x2ecc71},{en:'CROCODILE',cn:'鳄鱼',i:'🐊',c:0x27ae60},
+                {en:'LIZARD',cn:'蜥蜴',i:'🦎',c:0x2ecc71},{en:'BAT',cn:'蝙蝠',i:'🦇',c:0x2f3542},{en:'SPIDER',cn:'蜘蛛',i:'🕷️',c:0x2f3542},{en:'ANT',cn:'蚂蚁',i:'🐜',c:0x2f3542},
+                {en:'SNAIL',cn:'蜗牛',i:'🐌',c:0xd2b48c},{en:'DRAGONFLY',cn:'蜻蜓',i:'🦟',c:0x3498db},{en:'MOSQUITO',cn:'蚊子',i:'🦟',c:0x2f3542},{en:'DINOSAUR',cn:'恐龙',i:'🦕',c:0x2ecc71},
+                {en:'UNICORN',cn:'独角兽',i:'🦄',c:0xffc0cb},{en:'DRAGON',cn:'龙',i:'🐉',c:0xe74c3c}
+            ],
+            fruits: [
+                {en:'APPLE',cn:'苹果',i:'🍎',c:0xff4757},{en:'BANANA',cn:'香蕉',i:'🍌',c:0xffeaa7},{en:'GRAPE',cn:'葡萄',i:'🍇',c:0xa29bfe},{en:'PEACH',cn:'桃子',i:'🍑',c:0xfdcb6e},
+                {en:'MELON',cn:'甜瓜',i:'🍈',c:0x55efc4},{en:'CHERRY',cn:'樱桃',i:'🍒',c:0xd63031},{en:'LEMON',cn:'柠檬',i:'🍋',c:0xf1c40f},{en:'ORANGE',cn:'橙子',i:'🍊',c:0xe67e22},
+                {en:'WATERMELON',cn:'西瓜',i:'🍉',c:0x2ecc71},{en:'STRAWBERRY',cn:'草莓',i:'🍓',c:0xe84393},{en:'PINEAPPLE',cn:'菠萝',i:'🍍',c:0xf1c40f},{en:'MANGO',cn:'芒果',i:'🥭',c:0xf39c12},
+                {en:'KIWI',cn:'奇异果',i:'🥝',c:0x27ae60},{en:'AVOCADO',cn:'牛油果',i:'🥑',c:0x27ae60},{en:'COCONUT',cn:'椰子',i:'🥥',c:0xecf0f1},{en:'BLUEBERRY',cn:'蓝莓',i:'🫐',c:0x8e44ad},
+                {en:'PEAR',cn:'梨',i:'🍐',c:0xf1c40f},{en:'TOMATO',cn:'西红柿',i:'🍅',c:0xe74c3c},{en:'PLUM',cn:'李子',i:'🫐',c:0x8e44ad},{en:'FIG',cn:'无花果',i:'🌰',c:0x8d6e63},
+                {en:'CORN',cn:'玉米',i:'🌽',c:0xf1c40f},{en:'CARROT',cn:'胡萝卜',i:'🥕',c:0xe67e22},{en:'POTATO',cn:'土豆',i:'🥔',c:0xd2b48c},{en:'BROCCOLI',cn:'西兰花',i:'🥦',c:0x27ae60},
+                {en:'MUSHROOM',cn:'蘑菇',i:'🍄',c:0xffcccc},{en:'ONION',cn:'洋葱',i:'🧅',c:0xd2b48c},{en:'GARLIC',cn:'大蒜',i:'🧄',c:0xffffff},{en:'CUCUMBER',cn:'黄瓜',i:'🥒',c:0x2ecc71},
+                {en:'EGGPLANT',cn:'茄子',i:'🍆',c:0x8e44ad},{en:'PEPPER',cn:'辣椒',i:'🌶️',c:0xe74c3c},{en:'BURGER',cn:'汉堡',i:'🍔',c:0xf1c40f},{en:'PIZZA',cn:'披萨',i:'🍕',c:0xe74c3c},
+                {en:'HOTDOG',cn:'热狗',i:'🌭',c:0xe74c3c},{en:'BREAD',cn:'面包',i:'🍞',c:0xd2b48c},{en:'CAKE',cn:'蛋糕',i:'🍰',c:0xffc0cb},{en:'COOKIE',cn:'饼干',i:'🍪',c:0x8d6e63},
+                {en:'CANDY',cn:'糖果',i:'🍬',c:0xff69b4},{en:'CHOCOLATE',cn:'巧克力',i:'🍫',c:0x3e2723},{en:'ICE CREAM',cn:'冰淇淋',i:'🍦',c:0xffc0cb},{en:'MILK',cn:'牛奶',i:'🥛',c:0xffffff},
+                {en:'EGG',cn:'鸡蛋',i:'🥚',c:0xffeb3b},{en:'CHEESE',cn:'奶酪',i:'🧀',c:0xffeb3b},{en:'RICE',cn:'米饭',i:'🍚',c:0xffffff},{en:'NOODLE',cn:'面条',i:'🍜',c:0xf1c40f},
+                {en:'SOUP',cn:'汤',i:'🥣',c:0xe74c3c},{en:'FRIES',cn:'薯条',i:'🍟',c:0xf1c40f},{en:'POPCORN',cn:'爆米花',i:'🍿',c:0xffffff},{en:'DONUT',cn:'甜甜圈',i:'🍩',c:0xffc0cb},
+                {en:'SANDWICH',cn:'三明治',i:'🥪',c:0xf1c40f},{en:'STEAK',cn:'牛排',i:'🥩',c:0x8d6e63}
+            ],
+            colors: [
+                {en:'RED',cn:'红色',i:'🔴',c:0xff0000},{en:'BLUE',cn:'蓝色',i:'🔵',c:0x0000ff},{en:'GREEN',cn:'绿色',i:'🟢',c:0x00ff00},{en:'YELLOW',cn:'黄色',i:'🟡',c:0xffff00},
+                {en:'PURPLE',cn:'紫色',i:'🟣',c:0x800080},{en:'ORANGE',cn:'橙色',i:'🟠',c:0xffa500},{en:'BLACK',cn:'黑色',i:'⚫',c:0x000000},{en:'WHITE',cn:'白色',i:'⚪',c:0xffffff},
+                {en:'BROWN',cn:'棕色',i:'🟤',c:0x795548},{en:'PINK',cn:'粉色',i:'💗',c:0xffc0cb},{en:'GREY',cn:'灰色',i:'⬜',c:0x808080},{en:'GOLD',cn:'金色',i:'🌟',c:0xffd700},
+                {en:'SILVER',cn:'银色',i:'💿',c:0xc0c0c0},{en:'CYAN',cn:'青色',i:'🟦',c:0x00ffff},{en:'MAGENTA',cn:'品红',i:'🟪',c:0xff00ff},{en:'NAVY',cn:'藏青',i:'🔵',c:0x000080},
+                {en:'OLIVE',cn:'橄榄色',i:'🟢',c:0x808000},{en:'MAROON',cn:'栗色',i:'🟤',c:0x800000},{en:'LIME',cn:'酸橙色',i:'🟢',c:0x00ff00},{en:'TEAL',cn:'鸭翅绿',i:'🟦',c:0x008080},
+                {en:'BEIGE',cn:'米色',i:'🟤',c:0xf5f5dc},{en:'INDIGO',cn:'靛青',i:'🔵',c:0x4b0082},{en:'VIOLET',cn:'紫罗兰',i:'🟣',c:0xee82ee},{en:'TURQUOISE',cn:'绿松石',i:'🟦',c:0x40e0d0},
+                {en:'CIRCLE',cn:'圆形',i:'⭕',c:0xff0000},{en:'SQUARE',cn:'正方形',i:'🟥',c:0x0000ff},{en:'TRIANGLE',cn:'三角形',i:'🔺',c:0x00ff00},{en:'STAR',cn:'星形',i:'⭐',c:0xffff00},
+                {en:'HEART',cn:'心形',i:'❤️',c:0xffc0cb},{en:'DIAMOND',cn:'菱形',i:'🔸',c:0xffa500},{en:'OVAL',cn:'椭圆',i:'🥚',c:0xffffff},{en:'RECTANGLE',cn:'长方形',i:'💳',c:0x000000},
+                {en:'CUBE',cn:'立方体',i:'🧊',c:0xadd8e6},{en:'SPHERE',cn:'球体',i:'🔮',c:0x800080},{en:'CONE',cn:'圆锥',i:'🎉',c:0xff69b4},{en:'HEXAGON',cn:'六边形',i:'🛑',c:0xff0000},
+                {en:'CHECKERED',cn:'格纹',i:'🏁',c:0xffffff},{en:'STRIPE',cn:'条纹',i:'💈',c:0xff0000},{en:'DOT',cn:'点',i:'⚫',c:0x000000},{en:'LINE',cn:'线',i:'➖',c:0x000000},
+                {en:'RAINBOW',cn:'彩虹',i:'🌈',c:0x87ceeb},{en:'SHINY',cn:'闪亮',i:'✨',c:0xffff00},{en:'DARK',cn:'暗',i:'🌑',c:0x000000},{en:'LIGHT',cn:'亮',i:'🌕',c:0xffffff},
+                {en:'BRIGHT',cn:'明亮',i:'🔆',c:0xffd700},{en:'NEON',cn:'霓虹',i:'🚥',c:0x00ff00},{en:'PASTEL',cn:'柔和',i:'🧁',c:0xffc0cb},{en:'COLORFUL',cn:'多彩',i:'🎨',c:0xff00ff}
+            ],
+            numbers: [
+                {en:'ONE',cn:'一',i:'1️⃣',c:0x74b9ff},{en:'TWO',cn:'二',i:'2️⃣',c:0x0984e3},{en:'THREE',cn:'三',i:'3️⃣',c:0x6c5ce7},{en:'FOUR',cn:'四',i:'4️⃣',c:0xa29bfe},
+                {en:'FIVE',cn:'五',i:'5️⃣',c:0x00cec9},{en:'SIX',cn:'六',i:'6️⃣',c:0xff7675},{en:'SEVEN',cn:'七',i:'7️⃣',c:0xfdcb6e},{en:'EIGHT',cn:'八',i:'8️⃣',c:0x6a0572},
+                {en:'NINE',cn:'九',i:'9️⃣',c:0xab352f},{en:'TEN',cn:'十',i:'🔟',c:0x52b4bf},{en:'ZERO',cn:'零',i:'0️⃣',c:0x70a1ff},{en:'HUNDRED',cn:'百',i:'💯',c:0x4a4a4a},
+                {en:'ELEVEN',cn:'十一',i:'1️⃣1️⃣',c:0x74b9ff},{en:'TWELVE',cn:'十二',i:'1️⃣2️⃣',c:0x0984e3},{en:'THIRTEEN',cn:'十三',i:'1️⃣3️⃣',c:0x6c5ce7},{en:'FOURTEEN',cn:'十四',i:'1️⃣4️⃣',c:0xa29bfe},
+                {en:'FIFTEEN',cn:'十五',i:'1️⃣5️⃣',c:0x00cec9},{en:'SIXTEEN',cn:'十六',i:'1️⃣6️⃣',c:0xff7675},{en:'SEVENTEEN',cn:'十七',i:'1️⃣7️⃣',c:0xfdcb6e},{en:'EIGHTEEN',cn:'十八',i:'1️⃣8️⃣',c:0x6a0572},
+                {en:'NINETEEN',cn:'十九',i:'1️⃣9️⃣',c:0xab352f},{en:'TWENTY',cn:'二十',i:'2️⃣0️⃣',c:0x52b4bf},{en:'THIRTY',cn:'三十',i:'3️⃣0️⃣',c:0x70a1ff},{en:'FORTY',cn:'四十',i:'4️⃣0️⃣',c:0x4a4a4a},
+                {en:'FIFTY',cn:'五十',i:'5️⃣0️⃣',c:0x74b9ff},{en:'SIXTY',cn:'六十',i:'6️⃣0️⃣',c:0x0984e3},{en:'SEVENTY',cn:'七十',i:'7️⃣0️⃣',c:0x6c5ce7},{en:'EIGHTY',cn:'八十',i:'8️⃣0️⃣',c:0xa29bfe},
+                {en:'NINETY',cn:'九十',i:'9️⃣0️⃣',c:0x00cec9},{en:'THOUSAND',cn:'千',i:'K',c:0xff7675},{en:'MILLION',cn:'百万',i:'M',c:0xfdcb6e},{en:'FIRST',cn:'第一',i:'🥇',c:0x6a0572},
+                {en:'SECOND',cn:'第二',i:'🥈',c:0xab352f},{en:'THIRD',cn:'第三',i:'🥉',c:0x52b4bf},{en:'PLUS',cn:'加',i:'➕',c:0x70a1ff},{en:'MINUS',cn:'减',i:'➖',c:0x4a4a4a},
+                {en:'EQUAL',cn:'等于',i:'🟰',c:0x74b9ff},{en:'HALF',cn:'一半',i:'🌗',c:0x0984e3},{en:'QUARTER',cn:'四分之一',i:'¼',c:0x6c5ce7},{en:'PAIR',cn:'一对',i:'👯',c:0xa29bfe},
+                {en:'DOZEN',cn:'一打',i:'🥚',c:0x00cec9},{en:'DOUBLE',cn:'双倍',i:'✖️2',c:0xff7675},{en:'TRIPLE',cn:'三倍',i:'✖️3',c:0xfdcb6e},{en:'MANY',cn:'多',i:'🔢',c:0x6a0572},
+                {en:'FEW',cn:'少',i:'🤏',c:0xab352f},{en:'ALL',cn:'全部',i:'🈵',c:0x52b4bf},{en:'NONE',cn:'无',i:'🚫',c:0x70a1ff},{en:'COUNT',cn:'数数',i:'🧮',c:0x4a4a4a},
+                {en:'NUMBER',cn:'数字',i:'#️⃣',c:0x74b9ff},{en:'MATH',cn:'数学',i:'➗',c:0x0984e3}
+            ],
+            body: [
+                {en:'EYE',cn:'眼睛',i:'👁️',c:0xffffff},{en:'HAND',cn:'手',i:'🖐️',c:0xffcccc},{en:'NOSE',cn:'鼻子',i:'👃',c:0xf5cd79},{en:'MOUTH',cn:'嘴巴',i:'👄',c:0xff6b81},
+                {en:'FOOT',cn:'脚',i:'🦶',c:0xf7d794},{en:'EAR',cn:'耳朵',i:'👂',c:0xf7d794},{en:'ARM',cn:'手臂',i:'💪',c:0xf7d794},{en:'LEG',cn:'腿',i:'🦵',c:0xf7d794},
+                {en:'HEAD',cn:'头',i:'🗣️',c:0xf7d794},{en:'HAIR',cn:'头发',i:'💇',c:0x2c3e50},{en:'TOOTH',cn:'牙齿',i:'🦷',c:0xffffff},{en:'TONGUE',cn:'舌头',i:'👅',c:0xe17055},
+                {en:'FACE',cn:'脸',i:'😀',c:0xf7d794},{en:'FINGER',cn:'手指',i:'👆',c:0xffcccc},{en:'THUMB',cn:'拇指',i:'👍',c:0xffcccc},{en:'KNEE',cn:'膝盖',i:'🦵',c:0xf7d794},
+                {en:'NECK',cn:'脖子',i:'🧣',c:0xf7d794},{en:'SHOULDER',cn:'肩膀',i:'🤷',c:0xf7d794},{en:'BACK',cn:'背',i:'🔙',c:0xf7d794},{en:'HEART',cn:'心',i:'❤️',c:0xff6b81},
+                {en:'STOMACH',cn:'肚子',i:'🤰',c:0xf7d794},{en:'CHEST',cn:'胸',i:'👕',c:0xf7d794},{en:'ELBOW',cn:'肘',i:'💪',c:0xf7d794},{en:'WRIST',cn:'手腕',i:'⌚',c:0xf7d794},
+                {en:'ANKLE',cn:'脚踝',i:'🦶',c:0xf7d794},{en:'TOE',cn:'脚趾',i:'🦶',c:0xf7d794},{en:'NAIL',cn:'指甲',i:'💅',c:0xffc0cb},{en:'SKIN',cn:'皮肤',i:'✋',c:0xf7d794},
+                {en:'BONE',cn:'骨头',i:'🦴',c:0xffffff},{en:'BRAIN',cn:'大脑',i:'🧠',c:0xffc0cb},{en:'BLOOD',cn:'血',i:'🩸',c:0xff0000},{en:'LIP',cn:'嘴唇',i:'💋',c:0xff6b81},
+                {en:'CHEEK',cn:'脸颊',i:'😊',c:0xf7d794},{en:'CHIN',cn:'下巴',i:'🧔',c:0xf7d794},{en:'FOREHEAD',cn:'额头',i:'🤕',c:0xf7d794},{en:'EYEBROW',cn:'眉毛',i:'🤨',c:0x000000},
+                {en:'EYELASH',cn:'睫毛',i:'👁️',c:0x000000},{en:'BEARD',cn:'胡子',i:'🧔',c:0x000000},{en:'MUSTACHE',cn:'小胡子',i:'👨',c:0x000000},{en:'MUSCLE',cn:'肌肉',i:'💪',c:0xf7d794},
+                {en:'SKELETON',cn:'骨架',i:'💀',c:0xffffff},{en:'THROAT',cn:'喉咙',i:'🗣️',c:0xf7d794},{en:'WAIST',cn:'腰',i:'👖',c:0xf7d794},{en:'HIP',cn:'臀部',i:'👖',c:0xf7d794},
+                {en:'HEEL',cn:'脚后跟',i:'👠',c:0xf7d794},{en:'PALM',cn:'手掌',i:'✋',c:0xf7d794},{en:'FIST',cn:'拳头',i:'✊',c:0xf7d794},{en:'SMILE',cn:'微笑',i:'🙂',c:0xf7d794},
+                {en:'TEAR',cn:'眼泪',i:'💧',c:0x87ceeb},{en:'SWEAT',cn:'汗',i:'💦',c:0x87ceeb}
+            ],
+            vehicles: [
+                {en:'CAR',cn:'汽车',i:'🚗',c:0xe74c3c},{en:'BUS',cn:'巴士',i:'🚌',c:0xf1c40f},{en:'PLANE',cn:'飞机',i:'✈️',c:0x3498db},{en:'SHIP',cn:'轮船',i:'🚢',c:0x34495e},
+                {en:'BIKE',cn:'自行车',i:'🚲',c:0x2ecc71},{en:'ROCKET',cn:'火箭',i:'🚀',c:0x8e44ad},{en:'TRAIN',cn:'火车',i:'🚂',c:0x2c3e50},{en:'TRUCK',cn:'卡车',i:'🚚',c:0x95a5a6},
+                {en:'TAXI',cn:'出租车',i:'🚕',c:0xf1c40f},{en:'BOAT',cn:'小船',i:'🛶',c:0xe67e22},{en:'HELICOPTER',cn:'直升机',i:'🚁',c:0x27ae60},{en:'MOTORCYCLE',cn:'摩托车',i:'🏍️',c:0xe74c3c},
+                {en:'AMBULANCE',cn:'救护车',i:'🚑',c:0xffffff},{en:'POLICE CAR',cn:'警车',i:'🚓',c:0x3498db},{en:'FIRE TRUCK',cn:'消防车',i:'🚒',c:0xe74c3c},{en:'SCOOTER',cn:'滑板车',i:'🛴',c:0xf1c40f},
+                {en:'TRACTOR',cn:'拖拉机',i:'🚜',c:0x27ae60},{en:'SUBWAY',cn:'地铁',i:'🚇',c:0x95a5a6},{en:'VAN',cn:'货车',i:'🚐',c:0xffffff},{en:'JEEP',cn:'吉普车',i:'🚙',c:0x2ecc71},
+                {en:'SUBMARINE',cn:'潜水艇',i:'🚤',c:0x3498db},{en:'YACHT',cn:'游艇',i:'🛥️',c:0xffffff},{en:'CANOE',cn:'独木舟',i:'🛶',c:0xe67e22},{en:'KAYAK',cn:'皮划艇',i:'🛶',c:0xe67e22},
+                {en:'SKATEBOARD',cn:'滑板',i:'🛹',c:0x000000},{en:'ROLLER SKATE',cn:'溜冰鞋',i:'🛼',c:0xffffff},{en:'SLED',cn:'雪橇',i:'🛷',c:0x8d6e63},{en:'CARRIAGE',cn:'马车',i:'🐎',c:0x8d6e63},
+                {en:'UFO',cn:'飞碟',i:'🛸',c:0x95a5a6},{en:'BALLOON',cn:'热气球',i:'🎈',c:0xe74c3c},{en:'PARACHUTE',cn:'降落伞',i:'🪂',c:0xffffff},{en:'WHEEL',cn:'轮子',i:'🛞',c:0x000000},
+                {en:'TIRE',cn:'轮胎',i:'🛞',c:0x000000},{en:'ENGINE',cn:'引擎',i:'⚙️',c:0x95a5a6},{en:'WING',cn:'翅膀',i:'✈️',c:0xffffff},{en:'SEAT',cn:'座位',i:'💺',c:0x000000},
+                {en:'DOOR',cn:'车门',i:'🚪',c:0xffffff},{en:'WINDOW',cn:'车窗',i:'🪟',c:0x87ceeb},{en:'HORN',cn:'喇叭',i:'📣',c:0xf1c40f},{en:'LIGHT',cn:'车灯',i:'💡',c:0xf1c40f},
+                {en:'BRAKE',cn:'刹车',i:'🛑',c:0xe74c3c},{en:'GEAR',cn:'齿轮',i:'⚙️',c:0x95a5a6},{en:'MAP',cn:'地图',i:'🗺️',c:0xffffff},{en:'ROAD',cn:'公路',i:'🛣️',c:0x95a5a6},
+                {en:'BRIDGE',cn:'桥',i:'🌉',c:0x95a5a6},{en:'TUNNEL',cn:'隧道',i:'🚇',c:0x000000},{en:'STATION',cn:'车站',i:'🚉',c:0xffffff},{en:'AIRPORT',cn:'机场',i:'🛫',c:0xffffff},
+                {en:'PORT',cn:'港口',i:'⚓',c:0x3498db},{en:'GARAGE',cn:'车库',i:'🏠',c:0xffffff}
+            ],
+            nature: [
+                {en:'SUN',cn:'太阳',i:'☀️',c:0xf1c40f},{en:'MOON',cn:'月亮',i:'🌙',c:0xf1c40f},{en:'STAR',cn:'星星',i:'⭐',c:0xf1c40f},{en:'CLOUD',cn:'云',i:'☁️',c:0xffffff},
+                {en:'RAIN',cn:'雨',i:'🌧️',c:0x3498db},{en:'SNOW',cn:'雪',i:'❄️',c:0xffffff},{en:'TREE',cn:'树',i:'🌳',c:0x27ae60},{en:'FLOWER',cn:'花',i:'🌸',c:0xe84393},
+                {en:'FIRE',cn:'火',i:'🔥',c:0xe74c3c},{en:'WATER',cn:'水',i:'💧',c:0x3498db},{en:'MOUNTAIN',cn:'山',i:'⛰️',c:0x7f8c8d},{en:'OCEAN',cn:'大海',i:'🌊',c:0x2980b9},
+                {en:'RIVER',cn:'河流',i:'🏞️',c:0x00cec9},{en:'FOREST',cn:'森林',i:'🌲',c:0x27ae60},{en:'DESERT',cn:'沙漠',i:'🏜️',c:0xe67e22},{en:'ISLAND',cn:'岛屿',i:'🏝️',c:0x2ecc71},
+                {en:'VOLCANO',cn:'火山',i:'🌋',c:0xe74c3c},{en:'WIND',cn:'风',i:'💨',c:0xecf0f1},{en:'LIGHTNING',cn:'闪电',i:'⚡',c:0xf1c40f},{en:'RAINBOW',cn:'彩虹',i:'🌈',c:0xa29bfe},
+                {en:'SKY',cn:'天空',i:'🌌',c:0x3498db},{en:'EARTH',cn:'地球',i:'🌍',c:0x3498db},{en:'PLANET',cn:'星球',i:'🪐',c:0x9b59b6},{en:'SPACE',cn:'太空',i:'🚀',c:0x000000},
+                {en:'COMET',cn:'彗星',i:'☄️',c:0xffffff},{en:'METEOR',cn:'流星',i:'🌠',c:0xf1c40f},{en:'GRASS',cn:'草',i:'🌿',c:0x2ecc71},{en:'LEAF',cn:'叶子',i:'🍃',c:0x27ae60},
+                {en:'ROOT',cn:'根',i:'🥕',c:0x8d6e63},{en:'SEED',cn:'种子',i:'🌰',c:0x8d6e63},{en:'SOIL',cn:'泥土',i:'🟤',c:0x5d4037},{en:'ROCK',cn:'岩石',i:'🪨',c:0x7f8c8d},
+                {en:'SAND',cn:'沙子',i:'🏖️',c:0xf1c40f},{en:'STONE',cn:'石头',i:'🗿',c:0x95a5a6},{en:'PEBBLE',cn:'鹅卵石',i:'⚪',c:0xbdc3c7},{en:'CAVE',cn:'洞穴',i:'🕳️',c:0x000000},
+                {en:'VALLEY',cn:'山谷',i:'🏞️',c:0x2ecc71},{en:'HILL',cn:'小山',i:'⛰️',c:0x2ecc71},{en:'LAKE',cn:'湖',i:'🌊',c:0x3498db},{en:'POND',cn:'池塘',i:'🐸',c:0x3498db},
+                {en:'WATERFALL',cn:'瀑布',i:'🌊',c:0x3498db},{en:'WAVE',cn:'海浪',i:'🌊',c:0x2980b9},{en:'ICE',cn:'冰',i:'🧊',c:0xa29bfe},{en:'FROST',cn:'霜',i:'❄️',c:0xffffff},
+                {en:'FOG',cn:'雾',i:'🌫️',c:0xbdc3c7},{en:'STORM',cn:'暴风雨',i:'⛈️',c:0x2c3e50},{en:'THUNDER',cn:'雷',i:'🌩️',c:0xf1c40f},{en:'SEASON',cn:'季节',i:'🍂',c:0xe67e22},
+                {en:'SPRING',cn:'春天',i:'🌱',c:0x2ecc71},{en:'SUMMER',cn:'夏天',i:'☀️',c:0xf1c40f}
+            ],
+            action: [
+                {en:'RUN',cn:'跑',i:'🏃',c:0xe74c3c},{en:'JUMP',cn:'跳',i:'🦘',c:0xf1c40f},{en:'SWIM',cn:'游泳',i:'🏊',c:0x3498db},{en:'EAT',cn:'吃',i:'🍽️',c:0xe67e22},
+                {en:'SLEEP',cn:'睡觉',i:'💤',c:0x34495e},{en:'DANCE',cn:'跳舞',i:'💃',c:0x9b59b6},{en:'SING',cn:'唱歌',i:'🎤',c:0x2ecc71},{en:'READ',cn:'读',i:'📖',c:0x3498db},
+                {en:'WRITE',cn:'写',i:'✍️',c:0x95a5a6},{en:'WALK',cn:'走',i:'🚶',c:0x34495e},{en:'PLAY',cn:'玩',i:'🤹',c:0xf1c40f},{en:'FLY',cn:'飞',i:'🦅',c:0x3498db},
+                {en:'COOK',cn:'做饭',i:'🍳',c:0xe67e22},{en:'DRINK',cn:'喝',i:'🥤',c:0xe74c3c},{en:'LAUGH',cn:'笑',i:'😂',c:0xf1c40f},{en:'CRY',cn:'哭',i:'😭',c:0x3498db},
+                {en:'SIT',cn:'坐',i:'🪑',c:0x95a5a6},{en:'STAND',cn:'站',i:'🧍',c:0x2c3e50},{en:'CLIMB',cn:'爬',i:'🧗',c:0xe67e22},{en:'LISTEN',cn:'听',i:'👂',c:0xf1c40f},
+                {en:'WATCH',cn:'看',i:'👀',c:0x2c3e50},{en:'LOOK',cn:'瞧',i:'🔎',c:0x3498db},{en:'SEE',cn:'看见',i:'👁️',c:0xffffff},{en:'SMELL',cn:'闻',i:'👃',c:0xe67e22},
+                {en:'TASTE',cn:'尝',i:'👅',c:0xe74c3c},{en:'TOUCH',cn:'摸',i:'✋',c:0xf1c40f},{en:'FEEL',cn:'感觉',i:'❤️',c:0xe74c3c},{en:'THINK',cn:'想',i:'🤔',c:0x3498db},
+                {en:'DREAM',cn:'做梦',i:'💭',c:0x9b59b6},{en:'SMILE',cn:'微笑',i:'🙂',c:0xf1c40f},{en:'FROWN',cn:'皱眉',i:'☹️',c:0x34495e},{en:'SHOUT',cn:'喊',i:'📢',c:0xe74c3c},
+                {en:'WHISPER',cn:'耳语',i:'🤫',c:0x95a5a6},{en:'TALK',cn:'说话',i:'🗣️',c:0x2ecc71},{en:'ASK',cn:'问',i:'❓',c:0x3498db},{en:'ANSWER',cn:'答',i:'✅',c:0x2ecc71},
+                {en:'GIVE',cn:'给',i:'🎁',c:0xe74c3c},{en:'TAKE',cn:'拿',i:'🤲',c:0xf1c40f},{en:'OPEN',cn:'开',i:'🔓',c:0x2ecc71},{en:'CLOSE',cn:'关',i:'🔒',c:0xe74c3c},
+                {en:'PUSH',cn:'推',i:'🚪',c:0x34495e},{en:'PULL',cn:'拉',i:'🪢',c:0x3498db},{en:'THROW',cn:'扔',i:'⚾',c:0xffffff},{en:'CATCH',cn:'接',i:'🧤',c:0xe67e22},
+                {en:'KICK',cn:'踢',i:'⚽',c:0xffffff},{en:'HIT',cn:'打',i:'🥊',c:0xe74c3c},{en:'HUG',cn:'抱',i:'🤗',c:0xf1c40f},{en:'KISS',cn:'吻',i:'💋',c:0xe74c3c},
+                {en:'LOVE',cn:'爱',i:'❤️',c:0xe74c3c},{en:'HELP',cn:'帮助',i:'🤝',c:0x2ecc71}
+            ]
         };
 
         let currentPool = [];
@@ -251,6 +362,7 @@
         async function initHandLandmarker() {
             document.getElementById('debug-bar').innerText = "加载 AI 中...";
             try {
+                // 使用 jsdelivr (CORS友好)
                 const vision = await FilesetResolver.forVisionTasks(
                     "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
                 );
@@ -289,21 +401,19 @@
         }
 
         function onModelLoaded() {
-            document.getElementById('debug-bar').innerText = "AI 成功! 语音加载中...";
-            // 尝试预加载语音列表
+            document.getElementById('debug-bar').innerText = "AI 成功! 语音准备中...";
+            // 预加载语音列表
             loadVoices(); 
             document.getElementById('status-msg').innerText = "✅ 系统就绪，请点击关卡";
             document.querySelectorAll('.lvl-btn').forEach(b => b.classList.add('active'));
             document.getElementById('manual-upload').style.display = 'none';
         }
 
-        // 强制加载 Chrome 语音
         function loadVoices() {
             let voices = window.speechSynthesis.getVoices();
             if (voices.length > 0) {
                 document.getElementById('debug-bar').innerText = `系统就绪 (Voices: ${voices.length})`;
             } else {
-                // 等待加载事件
                 window.speechSynthesis.onvoiceschanged = () => {
                     voices = window.speechSynthesis.getVoices();
                     document.getElementById('debug-bar').innerText = `系统就绪 (Voices: ${voices.length})`;
@@ -494,7 +604,6 @@
             
             scene.remove(obj);
             balloons.splice(index, 1);
-            
             spawnExplosion(pos, type === 'gold' ? 0xffd700 : data.c, type);
             
             let pts = 10;
@@ -532,6 +641,7 @@
         
         // 全局存储防GC
         window.ttsUtterance = null;
+        window.utterances = []; // 队列防GC
 
         if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -562,47 +672,37 @@
             synth.cancel(); // 必须先停止之前的
             
             const u = new SpeechSynthesisUtterance(data.en);
-            u.lang = 'en-US';
+            u.lang = 'en-US'; 
             u.rate = 0.9;
-            u.volume = 1.0; // 确保音量最大
-            
+            u.volume = 1.0;
+
             // 尝试显式分配发音人 (Fix Chrome)
             const voices = synth.getVoices();
             // 优先找 Google 或 Microsoft 声音，最后回退到本地默认
-            const preferred = voices.find(v => v.name.includes("Google") || v.name.includes("Microsoft") || v.lang === "en-US");
+            const preferred = voices.find(v => 
+                v.name.includes("Google") || 
+                v.name.includes("Microsoft") ||
+                (v.lang === "en-US" && v.localService)
+            );
             if (preferred) u.voice = preferred;
 
-            window.ttsUtterance = u; // 挂载到全局
+            // 放入全局队列防GC
+            window.utterances.push(u);
+            if (window.utterances.length > 5) window.utterances.shift();
 
-            // 结束回调
-            const onEnd = () => {
+            const startListening = () => {
                 clearTimeout(ttsTimer);
-                // 3秒倒计时缓冲
-                let buf = 3;
-                document.getElementById('mic-status').innerText = `⏳ 准备跟读 (${buf})`;
-                const int = setInterval(() => {
-                    buf--;
-                    if(buf <= 0) {
-                        clearInterval(int);
-                        autoStartListening();
-                    } else {
-                        document.getElementById('mic-status').innerText = `⏳ 准备跟读 (${buf})`;
-                    }
-                }, 1000);
+                autoStartListening();
             };
             
-            u.onend = onEnd;
-            u.onerror = (e) => { 
-                console.error("TTS Error:", e);
-                onEnd(); // 出错也继续
-            };
-
-            // 播放
+            u.onend = startListening;
+            u.onerror = startListening; // 出错也继续
+            
             synth.speak(u);
-
-            // 保底机制：防止 Chrome/iOS 卡死
+            
+            // 2.5秒保底：防止 TTS 卡死
             clearTimeout(ttsTimer);
-            ttsTimer = setTimeout(onEnd, 2000);
+            ttsTimer = setTimeout(startListening, 2500);
         }
 
         function autoStartListening() {
@@ -703,24 +803,27 @@
             }
         }
 
+        // 启动 (点击触发音频解锁)
         window.startGame = (cat) => {
             currentPool = DB[cat];
             document.getElementById('lobby-screen').style.display = 'none';
             document.getElementById('game-ui').style.display = 'block';
             
-            // 关键：激活所有音频系统
+            // 关键：点击时同时解锁 Audio 和 TTS
             audioCtx.resume();
             
-            // 激活 TTS
-            const u = new SpeechSynthesisUtterance('Ready!');
-            u.lang = 'en-US';
-            u.volume = 1;
+            // 确保 voice 列表已加载
+            const voices = window.speechSynthesis.getVoices();
+            console.log("Voices loaded:", voices.length);
+            
+            const u = new SpeechSynthesisUtterance('');
             synth.speak(u);
 
             startCamera();
         };
 
         window.addEventListener('resize', resize);
+        window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
     </script>
 </body>
 </html>
