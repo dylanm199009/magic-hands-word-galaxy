@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Magic Garden V47 (Voice & Rhythm)</title>
+    <title>Magic Garden V48 (Chrome TTS Fix)</title>
     
     <!-- 1. 基础库 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" crossorigin="anonymous"></script>
@@ -103,24 +103,15 @@
             margin-top: 20px; width: 100%; 
             display: flex; flex-direction: column; align-items: center; justify-content: center; 
         }
-        
-        #mic-status {
-            font-size: 16px; color: #555; margin-bottom: 10px; font-weight: bold;
-        }
-
         #mic-btn {
-            width: 70px; height: 70px; border-radius: 50%; border: none; background: #ccc;
-            font-size: 30px; color: white; cursor: not-allowed; display: flex;
-            box-shadow: none; transition: all 0.3s;
-            justify-content: center; align-items: center;
-        }
-        #mic-btn.active {
-            background: #00cec9; cursor: pointer;
+            width: 70px; height: 70px; border-radius: 50%; border: none; background: #00cec9;
+            font-size: 30px; color: white; cursor: pointer; display: none;
             box-shadow: 0 0 0 0 rgba(0, 206, 201, 0.7); animation: pulse 1.5s infinite;
+            justify-content: center; align-items: center; display: flex;
         }
         @keyframes pulse { 70% { box-shadow: 0 0 0 15px rgba(0, 206, 201, 0); } }
-        /* 进度条 */
-        #timer-bar { width: 0%; height: 6px; background: #00cec9; border-radius: 3px; margin-top: 15px; }
+        /* 进度条 5s */
+        #timer-bar { width: 0%; height: 4px; background: #00cec9; border-radius: 2px; margin-top: 10px; transition: width 1s linear; }
 
         /* 4. 摄像头 & 雷达 */
         #cam-container {
@@ -150,14 +141,14 @@
     </style>
 </head>
 <body>
-    <div id="debug-bar">初始化系统 (V47 Voice Fix)...</div>
+    <div id="debug-bar">初始化系统 (V48 Chrome TTS Fix)...</div>
     <div id="sky-gradient"></div>
 
     <!-- 大厅 -->
     <div id="lobby-screen">
         <div class="logo">
             <h1>🌸 奇幻花园</h1>
-            <p>V47 节奏大师版</p>
+            <p>V48 谷歌语音修复版</p>
         </div>
         <div class="tree-box">
             <div id="magic-tree">🌳</div>
@@ -178,7 +169,7 @@
 
         <!-- 备用上传 -->
         <div id="manual-upload">
-            <p style="color:#d63031; font-weight:bold;">⚠️ 加载超时 (无VPN?)</p>
+            <p style="color:#d63031; font-weight:bold;">⚠️ 加载超时</p>
             <p style="font-size:12px;">请手动选择 <b>hand_landmarker.task</b></p>
             <input type="file" id="file-input" accept=".task">
         </div>
@@ -200,14 +191,12 @@
                 <h3 style="color:#0984e3; margin:0;" id="c-cn">苹果</h3>
                 
                 <div class="mic-area">
-                    <div id="mic-status">🔊 正在朗读...</div>
-                    <div id="mic-btn">🎙️</div>
-                    <div style="width:100%; background:#eee; height:6px; border-radius:3px; margin-top:10px;">
+                    <div id="mic-icon">🎙️</div>
+                    <div id="mic-status" style="margin-top:5px; color:#888; font-size:14px;">准备朗读...</div>
+                    <div style="width:100%; background:#eee; height:4px; border-radius:2px; margin-top:10px;">
                         <div id="timer-bar"></div>
                     </div>
                 </div>
-                
-                <button onclick="window.closeCard()" style="background:none; border:none; color:#999; margin-top:15px; text-decoration:underline; cursor:pointer;">跳过</button>
             </div>
         </div>
     </div>
@@ -226,7 +215,7 @@
 
         // --- 0. 全局变量 ---
         window.THREE = THREE; 
-        window.currentUtterance = null; // TTS 防回收
+        window.currentUtterance = null; // TTS 防回收句柄
         let handLandmarker = undefined;
         let lastVideoTime = -1;
         let running = false;
@@ -240,7 +229,7 @@
 
         // --- 1. 海量词库 ---
         const DB = {
-            animals: [{en:'LION',cn:'狮子',i:'🦁',c:0xffa502},{en:'TIGER',cn:'老虎',i:'🐯',c:0xff6348},{en:'CAT',cn:'猫咪',i:'🐱',c:0xff6b6b},{en:'DOG',cn:'小狗',i:'🐶',c:0x54a0ff},{en:'PANDA',cn:'熊猫',i:'🐼',c:0x2f3542},{en:'RABBIT',cn:'兔子',i:'🐰',c:0xffffff},{en:'PIG',cn:'小猪',i:'🐷',c:0xffcccc},{en:'FROG',cn:'青蛙',i:'🐸',c:0x2ecc71},{en:'MONKEY',cn:'猴子',i:'🐵',c:0xd35400}],
+            animals: [{en:'LION',cn:'狮子',i:'🦁',c:0xffa502},{en:'TIGER',cn:'老虎',i:'🐯',c:0xff6348},{en:'CAT',cn:'猫咪',i:'🐱',c:0xff6b6b},{en:'DOG',cn:'小狗',i:'🐶',c:0x54a0ff},{en:'PANDA',cn:'熊猫',i:'🐼',c:0x2f3542},{en:'RABBIT',cn:'兔子',i:'🐰',c:0xffffff},{en:'PIG',cn:'小猪',i:'🐷',c:0xffcccc},{en:'BEAR',cn:'熊',i:'🐻',c:0x8d6e63},{en:'FROG',cn:'青蛙',i:'🐸',c:0x2ecc71},{en:'KOALA',cn:'考拉',i:'🐨',c:0x95afc0},{en:'FOX',cn:'狐狸',i:'🦊',c:0xe17055},{en:'ZEBRA',cn:'斑马',i:'🦓',c:0x2d3436},{en:'GIRAFFE',cn:'长颈鹿',i:'🦒',c:0xf1c40f},{en:'ELEPHANT',cn:'大象',i:'🐘',c:0xbdc3c7},{en:'MONKEY',cn:'猴子',i:'🐵',c:0xd35400}],
             fruits: [{en:'APPLE',cn:'苹果',i:'🍎',c:0xff4757},{en:'BANANA',cn:'香蕉',i:'🍌',c:0xffeaa7},{en:'GRAPE',cn:'葡萄',i:'🍇',c:0xa29bfe},{en:'PEACH',cn:'桃子',i:'🍑',c:0xfdcb6e},{en:'MELON',cn:'甜瓜',i:'🍈',c:0x55efc4},{en:'CHERRY',cn:'樱桃',i:'🍒',c:0xd63031},{en:'ORANGE',cn:'橙子',i:'🍊',c:0xe67e22},{en:'WATERMELON',cn:'西瓜',i:'🍉',c:0x2ecc71}],
             colors: [{en:'RED',cn:'红色',i:'🔴',c:0xff0000},{en:'BLUE',cn:'蓝色',i:'🔵',c:0x0000ff},{en:'GREEN',cn:'绿色',i:'🟢',c:0x00ff00},{en:'YELLOW',cn:'黄色',i:'🟡',c:0xffff00},{en:'PURPLE',cn:'紫色',i:'🟣',c:0x800080},{en:'ORANGE',cn:'橙色',i:'🟠',c:0xffa500},{en:'BLACK',cn:'黑色',i:'⚫',c:0x000000},{en:'WHITE',cn:'白色',i:'⚪',c:0xffffff}],
             numbers: [{en:'ONE',cn:'一',i:'1️⃣',c:0x74b9ff},{en:'TWO',cn:'二',i:'2️⃣',c:0x0984e3},{en:'THREE',cn:'三',i:'3️⃣',c:0x6c5ce7},{en:'FOUR',cn:'四',i:'4️⃣',c:0xa29bfe},{en:'FIVE',cn:'五',i:'5️⃣',c:0x00cec9},{en:'TEN',cn:'十',i:'🔟',c:0x52b4bf}],
@@ -262,7 +251,6 @@
         async function initHandLandmarker() {
             document.getElementById('debug-bar').innerText = "加载 AI 中...";
             try {
-                // 使用 jsdelivr
                 const vision = await FilesetResolver.forVisionTasks(
                     "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
                 );
@@ -288,17 +276,39 @@
 
         async function createModel(vision, pathOrUrl) {
             handLandmarker = await HandLandmarker.createFromOptions(vision, {
-                baseOptions: { modelAssetPath: pathOrUrl, delegate: "CPU" },
-                runningMode: "VIDEO", numHands: 1, minHandDetectionConfidence: 0.3,
-                minHandPresenceConfidence: 0.3, minTrackingConfidence: 0.3
+                baseOptions: {
+                    modelAssetPath: pathOrUrl,
+                    delegate: "CPU"
+                },
+                runningMode: "VIDEO",
+                numHands: 1,
+                minHandDetectionConfidence: 0.3,
+                minHandPresenceConfidence: 0.3,
+                minTrackingConfidence: 0.3
             });
         }
 
         function onModelLoaded() {
-            document.getElementById('debug-bar').innerText = "AI 成功!";
+            document.getElementById('debug-bar').innerText = "AI 成功! 语音加载中...";
+            // 尝试预加载语音列表
+            loadVoices(); 
             document.getElementById('status-msg').innerText = "✅ 系统就绪，请点击关卡";
             document.querySelectorAll('.lvl-btn').forEach(b => b.classList.add('active'));
             document.getElementById('manual-upload').style.display = 'none';
+        }
+
+        // 强制加载 Chrome 语音
+        function loadVoices() {
+            let voices = window.speechSynthesis.getVoices();
+            if (voices.length > 0) {
+                document.getElementById('debug-bar').innerText = `系统就绪 (Voices: ${voices.length})`;
+            } else {
+                // 等待加载事件
+                window.speechSynthesis.onvoiceschanged = () => {
+                    voices = window.speechSynthesis.getVoices();
+                    document.getElementById('debug-bar').innerText = `系统就绪 (Voices: ${voices.length})`;
+                };
+            }
         }
 
         document.getElementById('file-input').addEventListener('change', async (e) => {
@@ -484,6 +494,7 @@
             
             scene.remove(obj);
             balloons.splice(index, 1);
+            
             spawnExplosion(pos, type === 'gold' ? 0xffd700 : data.c, type);
             
             let pts = 10;
@@ -513,14 +524,15 @@
             setTimeout(()=>el.remove(), 1000);
         }
 
-        // --- 5. 语音与卡片 (V47 节奏优化) ---
+        // --- 5. 语音逻辑 (Chrome 修复版) ---
         const synth = window.speechSynthesis;
         let ttsTimer = null;
         let recTimer = null;
         let recognition = null;
-        let isListening = false;
+        
+        // 全局存储防GC
+        window.ttsUtterance = null;
 
-        // 初始化识别
         if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             recognition = new SpeechRecognition();
@@ -532,74 +544,81 @@
         function showCard(data) {
             isPaused = true;
             currentWordData = data;
-            isListening = false;
             
-            // 1. 显示卡片
             document.getElementById('c-icon').innerText = data.i;
             document.getElementById('c-word').innerText = data.en;
             document.getElementById('c-cn').innerText = data.cn;
             document.getElementById('card-modal').classList.add('active');
             
-            // 2. 初始状态：正在朗读 (不可跟读)
-            const micBtn = document.getElementById('mic-btn');
-            micBtn.classList.remove('active');
-            micBtn.style.cursor = "not-allowed";
+            // UI 重置
+            const micIcon = document.getElementById('mic-icon');
+            micIcon.classList.remove('listening');
+            micIcon.style.background = "#ccc";
             document.getElementById('mic-status').innerText = "🔊 正在朗读...";
             document.getElementById('timer-bar').style.width = "0%";
             document.getElementById('timer-bar').style.transition = "none";
 
-            // 3. 播放朗读
-            synth.cancel();
+            // 朗读逻辑
+            synth.cancel(); // 必须先停止之前的
+            
             const u = new SpeechSynthesisUtterance(data.en);
-            u.lang = 'en-US'; u.rate = 0.8;
-            window.currentUtterance = u; 
+            u.lang = 'en-US';
+            u.rate = 0.9;
+            u.volume = 1.0; // 确保音量最大
+            
+            // 尝试显式分配发音人 (Fix Chrome)
+            const voices = synth.getVoices();
+            // 优先找 Google 或 Microsoft 声音，最后回退到本地默认
+            const preferred = voices.find(v => v.name.includes("Google") || v.name.includes("Microsoft") || v.lang === "en-US");
+            if (preferred) u.voice = preferred;
 
-            // 朗读结束或超时回调
-            const onSpeechEnd = () => {
+            window.ttsUtterance = u; // 挂载到全局
+
+            // 结束回调
+            const onEnd = () => {
                 clearTimeout(ttsTimer);
-                // 3秒缓冲倒计时 (给孩子反应时间)
-                let buffer = 3;
-                document.getElementById('mic-status').innerText = `⏳ 准备跟读... (${buffer})`;
-                
-                const bufferInt = setInterval(() => {
-                    buffer--;
-                    if(buffer <= 0) {
-                        clearInterval(bufferInt);
-                        // 倒计时结束，开启麦克风
-                        startListeningPhase();
+                // 3秒倒计时缓冲
+                let buf = 3;
+                document.getElementById('mic-status').innerText = `⏳ 准备跟读 (${buf})`;
+                const int = setInterval(() => {
+                    buf--;
+                    if(buf <= 0) {
+                        clearInterval(int);
+                        autoStartListening();
                     } else {
-                        document.getElementById('mic-status').innerText = `⏳ 准备跟读... (${buffer})`;
+                        document.getElementById('mic-status').innerText = `⏳ 准备跟读 (${buf})`;
                     }
                 }, 1000);
             };
+            
+            u.onend = onEnd;
+            u.onerror = (e) => { 
+                console.error("TTS Error:", e);
+                onEnd(); // 出错也继续
+            };
 
-            u.onend = onSpeechEnd;
-            u.onerror = onSpeechEnd;
-            
+            // 播放
             synth.speak(u);
-            
-            // 1.5秒强制结束朗读 (防止iOS卡死，确保流程继续)
-            // 注意：这里只是结束“朗读状态”，进入“缓冲状态”
+
+            // 保底机制：防止 Chrome/iOS 卡死
             clearTimeout(ttsTimer);
-            ttsTimer = setTimeout(onSpeechEnd, 1500); 
+            ttsTimer = setTimeout(onEnd, 2000);
         }
 
-        function startListeningPhase() {
-            isListening = true;
-            const micBtn = document.getElementById('mic-btn');
-            micBtn.classList.add('active');
-            micBtn.style.cursor = "pointer";
-            document.getElementById('mic-status').innerText = "🎤 请跟读... (5秒)";
-            
-            // 进度条动画 (5秒)
-            setTimeout(() => {
-                const bar = document.getElementById('timer-bar');
-                bar.style.transition = "width 5s linear";
-                bar.style.width = "100%";
-            }, 10);
+        function autoStartListening() {
+            const micIcon = document.getElementById('mic-icon');
+            const status = document.getElementById('mic-status');
+            const timerBar = document.getElementById('timer-bar');
 
-            // 尝试启动真实识别
+            status.innerText = "👂 请跟读... (5秒)";
+            micIcon.style.background = "#00cec9";
+            micIcon.classList.add('listening'); 
+            
+            timerBar.style.width = "100%";
+            timerBar.style.transition = "width 5s linear";
+
             let hasResult = false;
+            
             if (recognition) {
                 try {
                     recognition.start();
@@ -613,30 +632,22 @@
                 } catch(e) {}
             }
 
-            // 5秒后自动判定
             const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
             recTimer = setTimeout(() => {
                 if (!hasResult) {
-                    // iOS 自动过，PC 判超时
                     if (isIOS) finishListening(true, "Great! (自动)"); 
                     else finishListening(false, "超时");
                 }
             }, 5000);
         }
 
-        // 手动点击麦克风 (如果用户想提前结束等待)
-        window.startSpeechRec = () => {
-            if(!isListening) return; // 未到跟读时间不可点
-            // 这里其实是重新触发识别，或者作为备用
-            // 实际流程中，startListeningPhase 已经自动开始了
-        };
-
         function finishListening(success, msg) {
             if (recTimer) clearTimeout(recTimer);
             if (recognition) try { recognition.stop(); } catch(e){}
 
-            document.getElementById('mic-status').innerText = success ? `🌟 ${msg}` : "😅 继续加油";
-            document.getElementById('mic-btn').classList.remove('active');
+            const status = document.getElementById('mic-status');
+            status.innerText = success ? `🌟 ${msg}` : "😅 继续加油";
+            document.getElementById('mic-icon').classList.remove('listening');
 
             if (success) {
                 playSynth('win');
@@ -646,7 +657,7 @@
                 playSynth('pop'); 
             }
 
-            setTimeout(window.closeCard, 1500);
+            setTimeout(closeCard, 1500);
         }
 
         window.closeCard = () => {
@@ -697,15 +708,19 @@
             document.getElementById('lobby-screen').style.display = 'none';
             document.getElementById('game-ui').style.display = 'block';
             
+            // 关键：激活所有音频系统
             audioCtx.resume();
-            // 关键：朗读"Go!"来激活TTS
-            const u = new SpeechSynthesisUtterance('Go!');
+            
+            // 激活 TTS
+            const u = new SpeechSynthesisUtterance('Ready!');
+            u.lang = 'en-US';
+            u.volume = 1;
             synth.speak(u);
+
             startCamera();
         };
 
         window.addEventListener('resize', resize);
-        window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
     </script>
 </body>
 </html>
